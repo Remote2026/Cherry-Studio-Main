@@ -43,6 +43,7 @@ import { Route as SettingsOcrRouteImport } from './routes/settings/ocr'
 import { Route as SettingsPromptsRouteImport } from './routes/settings/prompts'
 import { Route as SettingsProviderRouteImport } from './routes/settings/provider'
 import { Route as SettingsQuickAssistantRouteImport } from './routes/settings/quick-assistant'
+import { Route as SettingsRagflowRouteImport } from './routes/settings/ragflow'
 import { Route as SettingsScheduledTasksRouteImport } from './routes/settings/scheduled-tasks'
 import { Route as SettingsScreenshotRouteImport } from './routes/settings/screenshot'
 import { Route as SettingsSearchRouteImport } from './routes/settings/search'
@@ -240,6 +241,11 @@ const SettingsQuickAssistantRoute = SettingsQuickAssistantRouteImport.update({
   path: '/quick-assistant',
   getParentRoute: () => SettingsRoute,
 } as any)
+const SettingsRagflowRoute = SettingsRagflowRouteImport.update({
+  id: '/ragflow',
+  path: '/ragflow',
+  getParentRoute: () => SettingsRoute,
+} as any)
 const SettingsScheduledTasksRoute = SettingsScheduledTasksRouteImport.update({
   id: '/scheduled-tasks',
   path: '/scheduled-tasks',
@@ -404,6 +410,7 @@ export interface FileRoutesByFullPath {
   '/settings/prompts': typeof SettingsPromptsRoute
   '/settings/provider': typeof SettingsProviderRoute
   '/settings/quick-assistant': typeof SettingsQuickAssistantRoute
+  '/settings/ragflow': typeof SettingsRagflowRoute
   '/settings/scheduled-tasks': typeof SettingsScheduledTasksRouteWithChildren
   '/settings/screenshot': typeof SettingsScreenshotRoute
   '/settings/search': typeof SettingsSearchRoute
@@ -463,6 +470,7 @@ export interface FileRoutesByTo {
   '/settings/prompts': typeof SettingsPromptsRoute
   '/settings/provider': typeof SettingsProviderRoute
   '/settings/quick-assistant': typeof SettingsQuickAssistantRoute
+  '/settings/ragflow': typeof SettingsRagflowRoute
   '/settings/screenshot': typeof SettingsScreenshotRoute
   '/settings/search': typeof SettingsSearchRoute
   '/settings/selection-assistant': typeof SettingsSelectionAssistantRoute
@@ -523,6 +531,7 @@ export interface FileRoutesById {
   '/settings/prompts': typeof SettingsPromptsRoute
   '/settings/provider': typeof SettingsProviderRoute
   '/settings/quick-assistant': typeof SettingsQuickAssistantRoute
+  '/settings/ragflow': typeof SettingsRagflowRoute
   '/settings/scheduled-tasks': typeof SettingsScheduledTasksRouteWithChildren
   '/settings/screenshot': typeof SettingsScreenshotRoute
   '/settings/search': typeof SettingsSearchRoute
@@ -586,6 +595,7 @@ export interface FileRouteTypes {
     | '/settings/prompts'
     | '/settings/provider'
     | '/settings/quick-assistant'
+    | '/settings/ragflow'
     | '/settings/scheduled-tasks'
     | '/settings/screenshot'
     | '/settings/search'
@@ -645,6 +655,7 @@ export interface FileRouteTypes {
     | '/settings/prompts'
     | '/settings/provider'
     | '/settings/quick-assistant'
+    | '/settings/ragflow'
     | '/settings/screenshot'
     | '/settings/search'
     | '/settings/selection-assistant'
@@ -704,6 +715,7 @@ export interface FileRouteTypes {
     | '/settings/prompts'
     | '/settings/provider'
     | '/settings/quick-assistant'
+    | '/settings/ragflow'
     | '/settings/scheduled-tasks'
     | '/settings/screenshot'
     | '/settings/search'
@@ -975,6 +987,13 @@ declare module '@tanstack/react-router' {
       path: '/quick-assistant'
       fullPath: '/settings/quick-assistant'
       preLoaderRoute: typeof SettingsQuickAssistantRouteImport
+      parentRoute: typeof SettingsRoute
+    }
+    '/settings/ragflow': {
+      id: '/settings/ragflow'
+      path: '/ragflow'
+      fullPath: '/settings/ragflow'
+      preLoaderRoute: typeof SettingsRagflowRouteImport
       parentRoute: typeof SettingsRoute
     }
     '/settings/scheduled-tasks': {
@@ -1270,6 +1289,7 @@ interface SettingsRouteChildren {
   SettingsPromptsRoute: typeof SettingsPromptsRoute
   SettingsProviderRoute: typeof SettingsProviderRoute
   SettingsQuickAssistantRoute: typeof SettingsQuickAssistantRoute
+  SettingsRagflowRoute: typeof SettingsRagflowRoute
   SettingsScheduledTasksRoute: typeof SettingsScheduledTasksRouteWithChildren
   SettingsScreenshotRoute: typeof SettingsScreenshotRoute
   SettingsSearchRoute: typeof SettingsSearchRoute
@@ -1303,6 +1323,7 @@ const SettingsRouteChildren: SettingsRouteChildren = {
   SettingsPromptsRoute: SettingsPromptsRoute,
   SettingsProviderRoute: SettingsProviderRoute,
   SettingsQuickAssistantRoute: SettingsQuickAssistantRoute,
+  SettingsRagflowRoute: SettingsRagflowRoute,
   SettingsScheduledTasksRoute: SettingsScheduledTasksRouteWithChildren,
   SettingsScreenshotRoute: SettingsScreenshotRoute,
   SettingsSearchRoute: SettingsSearchRoute,

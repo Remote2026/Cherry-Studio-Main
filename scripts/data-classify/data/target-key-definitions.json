@@ -447,6 +447,20 @@
       "description": "Translate page target language (from complex migration)"
     },
     {
+      "targetKey": "feature.ragflow.api_key",
+      "type": "string",
+      "defaultValue": "",
+      "status": "classified",
+      "description": "RagFlow API key used by the main-process client"
+    },
+    {
+      "targetKey": "feature.ragflow.api_url",
+      "type": "string",
+      "defaultValue": "http://localhost",
+      "status": "classified",
+      "description": "RagFlow service base URL"
+    },
+    {
       "targetKey": "feature.binary.install_settings",
       "type": "PreferenceTypes.BinaryInstallSettings",
       "defaultValue": {

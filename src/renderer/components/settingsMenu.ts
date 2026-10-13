@@ -6,6 +6,7 @@ import {
   Cloud,
   Command,
   Crop,
+  Database,
   FileBox,
   FileCode,
   Globe,
@@ -66,6 +67,12 @@ export const settingsMenu: readonly SettingsMenuEntry[] = [
     icon: createElement(FileBox)
   },
   { route: '/settings/api-gateway', titleKey: 'apiGateway.title', icon: createElement(GatewayIcon) },
+  {
+    route: '/settings/ragflow',
+    titleKey: 'settings.ragflow.title',
+    icon: createElement(Database),
+    groupKey: 'settings.menuGroups.capabilities'
+  },
   {
     route: '/settings/mcp',
     titleKey: 'agent.settings.toolsMcp.mcp.tab',
