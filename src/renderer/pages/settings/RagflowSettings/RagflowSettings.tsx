@@ -14,7 +14,10 @@ import {
 } from '@renderer/components/SettingsPrimitives'
 import { useMultiplePreferences } from '@renderer/data/hooks/usePreference'
 import { useTheme } from '@renderer/hooks/useTheme'
+import { ipcApi } from '@renderer/ipc'
 import { toast } from '@renderer/services/toast'
+import { IpcError } from '@shared/ipc/errors/IpcError'
+import { ragflowErrorCodes } from '@shared/ipc/errors/ragflow'
 
 const RAGFLOW_PREFERENCE_KEYS = {
   apiUrl: 'feature.ragflow.api_url',
@@ -37,6 +40,7 @@ const RagflowSettings: FC = () => {
   const [apiUrl, setApiUrl] = useState(preferences.apiUrl)
   const [apiKey, setApiKey] = useState(preferences.apiKey)
   const [apiKeyVisible, setApiKeyVisible] = useState(false)
+  const [isTesting, setIsTesting] = useState(false)
 
   useEffect(() => {
     setApiUrl(preferences.apiUrl)
@@ -62,6 +66,40 @@ const RagflowSettings: FC = () => {
       toast.success(t('common.saved'))
     } catch {
       toast.error(t('common.save_failed'))
+    }
+  }
+
+  const handleTestConnection = async () => {
+    const normalizedUrl = apiUrl.trim().replace(/\/+$/, '')
+    const normalizedApiKey = apiKey.trim()
+
+    if (!isValidRagflowUrl(normalizedUrl)) {
+      toast.error(t('settings.ragflow.validation.invalid_url'))
+      return
+    }
+
+    if (!normalizedApiKey) {
+      toast.error(t('settings.ragflow.validation.missing_api_key'))
+      return
+    }
+
+    setIsTesting(true)
+    try {
+      await setPreferences({ apiUrl: normalizedUrl, apiKey: normalizedApiKey })
+      await ipcApi.request('ragflow.test_connection')
+      toast.success(t('settings.ragflow.connection.success'))
+    } catch (error) {
+      const messageKey =
+        error instanceof IpcError && error.code === ragflowErrorCodes.UNAUTHORIZED
+          ? 'settings.ragflow.connection.unauthorized'
+          : error instanceof IpcError && error.code === ragflowErrorCodes.UNAVAILABLE
+            ? 'settings.ragflow.connection.unavailable'
+            : error instanceof IpcError && error.code === ragflowErrorCodes.CONFIG_INVALID
+              ? 'settings.ragflow.connection.invalid_config'
+              : 'settings.ragflow.connection.failed'
+      toast.error(t(messageKey))
+    } finally {
+      setIsTesting(false)
     }
   }
 
@@ -115,7 +153,14 @@ const RagflowSettings: FC = () => {
           </InputGroup>
         </div>
         <div className="mt-4 flex justify-end">
-          <Button id="setting-ragflow-save" onClick={() => void handleSave()}>
+          <Button
+            id="setting-ragflow-test"
+            variant="outline"
+            onClick={() => void handleTestConnection()}
+            disabled={isTesting}>
+            {t(isTesting ? 'common.loading' : 'settings.ragflow.connection.test')}
+          </Button>
+          <Button id="setting-ragflow-save" className="ml-2" onClick={() => void handleSave()}>
             <Save size={14} />
             {t('common.save')}
           </Button>

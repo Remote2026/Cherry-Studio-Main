@@ -7,7 +7,10 @@ import { toast } from '@renderer/services/toast'
 
 import RagflowSettings from '../RagflowSettings'
 
-const setPreferencesMock = vi.fn()
+const { ipcRequestMock, setPreferencesMock } = vi.hoisted(() => ({
+  ipcRequestMock: vi.fn(),
+  setPreferencesMock: vi.fn()
+}))
 const preferences = { apiUrl: 'http://localhost', apiKey: '' }
 
 vi.mock('@cherrystudio/ui', async (importOriginal) => {
@@ -49,6 +52,8 @@ vi.mock('@renderer/hooks/useTheme', () => ({
   useTheme: () => ({ theme: 'light' })
 }))
 
+vi.mock('@renderer/ipc', () => ({ ipcApi: { request: ipcRequestMock } }))
+
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({ t: (key: string) => key })
 }))
@@ -59,6 +64,8 @@ describe('RagflowSettings', () => {
     preferences.apiKey = ''
     setPreferencesMock.mockReset()
     setPreferencesMock.mockResolvedValue(undefined)
+    ipcRequestMock.mockReset()
+    ipcRequestMock.mockResolvedValue(undefined)
     vi.clearAllMocks()
   })
 
@@ -105,5 +112,15 @@ describe('RagflowSettings', () => {
       })
     )
     expect(toast.success).toHaveBeenCalledWith('common.saved')
+  })
+
+  it('tests the saved settings through the main-process IPC route', async () => {
+    render(<RagflowSettings />)
+
+    fireEvent.change(screen.getByLabelText('settings.ragflow.fields.api_key'), { target: { value: ' secret-key ' } })
+    fireEvent.click(screen.getByRole('button', { name: 'settings.ragflow.connection.test' }))
+
+    await waitFor(() => expect(ipcRequestMock).toHaveBeenCalledWith('ragflow.test_connection'))
+    expect(toast.success).toHaveBeenCalledWith('settings.ragflow.connection.success')
   })
 })
