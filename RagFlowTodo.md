@@ -22,9 +22,9 @@
 - [x] Add a service address field with `http://localhost` as the initial default.
 - [x] Add an API Key password field with show/hide control.
 - [x] Add a Save action.
-- [ ] Add a connection-test action through the main-process RagFlow client.
+- [x] Add a connection-test action through the main-process RagFlow client.
 - [x] Add clear validation for an invalid URL and an empty API Key.
-- [ ] Display actionable errors for connection failure, unauthorized access, and unavailable RagFlow service.
+- [x] Display actionable errors for connection failure, unauthorized access, and unavailable RagFlow service.
 - [x] Load the saved configuration when the page is opened.
 - [ ] Keep the API Key out of renderer network requests, logs, exports, and error messages.
 - [x] Store the configuration through the existing application preference/configuration boundary.
@@ -87,3 +87,26 @@
 - A configured user can see RagFlow datasets and run a retrieval test from Cherry Studio.
 - Chat retrieval uses RagFlow without creating local documents, embeddings, or vector indexes.
 - Existing local knowledge bases continue to work during the migration period.
+
+## Deferred: Intranet Offline Follow-ups
+
+Do these last, after the RagFlow work.
+
+Commit `f10993a` fixed the region to CN, turned automatic update checks off by default, and
+stopped the provider-catalog pull. The egress points below are still unresolved for a
+deployment with no internet access.
+
+### A. Converge every egress point behind an intranet mode
+
+- [ ] Application update downloads and release history (`AppUpdaterService`).
+- [ ] OCR language packs (`TesseractRuntimeService`).
+- [ ] Python runtime and pip installs (`pythonRuntime`, `BinaryManager`).
+- [ ] Local model downloads (the `local_model.download` handler).
+- [ ] Mini-app installs and their update check (`httpSource`, `feature.mini_app.*`).
+- [ ] Cherry Cloud and Jina search (`CherryCloudService`, `JinaProvider`).
+- [ ] Centralize the switch (one intranet-mode flag or internal mirror configuration) rather than per-service guards.
+- [ ] Run a packaged build with no network and confirm the log has no remaining periodic egress failures.
+
+### B. Remove the orphaned proxy key getter
+
+- [ ] Delete `appliedProxyKey` in `src/main/services/proxy/ProxyService.ts` — its only consumer was the region-cache invalidation removed in `f10993a` — plus its assertion in `ProxyService.test.ts`.
