@@ -71,12 +71,7 @@ import { MockMainCacheServiceUtils } from '@test-mocks/main/CacheService'
 import { REGISTRY_SCHEMA_VERSION } from '@cherrystudio/provider-registry/node'
 
 import { builtinEndpoints } from '../network/endpoints'
-import {
-  ProviderRegistryUpdaterService,
-  REGISTRY_URL_GITCODE,
-  resolveRegistryBaseUrl
-} from '../ProviderRegistryUpdaterService'
-import { regionService } from '../RegionService'
+import { ProviderRegistryUpdaterService } from '../ProviderRegistryUpdaterService'
 
 const response = (body: string, ok = true) => ({ ok, status: ok ? 200 : 404, text: async () => body })
 
@@ -89,7 +84,6 @@ function mockRemote(
     manifest?: string | null
     dataVersion?: string
     dataOk?: boolean
-    country?: string | null
   } = {}
 ) {
   const {
@@ -98,8 +92,7 @@ function mockRemote(
     revision = 2,
     manifest,
     dataVersion = 'v2',
-    dataOk = true,
-    country = 'US'
+    dataOk = true
   } = opts
   const files = { 'models.json': dataVersion, 'providers.json': dataVersion, 'provider-models.json': dataVersion }
   const manifestBody =
@@ -107,10 +100,6 @@ function mockRemote(
       ? JSON.stringify({ minAppVersion, sourceAppVersion, revision, schemaVersion: REGISTRY_SCHEMA_VERSION, files })
       : manifest
   netFetchMock.mockImplementation(async (url: string) => {
-    if (url.startsWith('https://api.ipinfo.io/')) {
-      if (country === null) throw new Error('Region lookup unavailable')
-      return { ok: true, json: async () => ({ country_code: country }) }
-    }
     if (url.endsWith('/manifest.json')) {
       return manifestBody === null ? response('', false) : response(manifestBody)
     }
@@ -293,31 +282,15 @@ describe('ProviderRegistryUpdaterService.check', () => {
     expect(netFetchMock).not.toHaveBeenCalledWith(expect.stringContaining('/models.json'), expect.anything())
   })
 
-  it.each(['US', 'CN', null])('diagnoses the updater mirror with a cold country cache (%s)', async (country) => {
-    mockRemote({ country })
+  it('pulls the catalog from the GitCode mirror', async () => {
+    mockRemote()
+
+    await service.check()
+
     const endpoints = await builtinEndpoints()
     const url = endpoints.find((endpoint) => endpoint.id === 'registry')!.url
-    await service.check()
+    expect(url).toContain('raw.gitcode.com')
     expect(netFetchMock).toHaveBeenCalledWith(url, expect.anything())
-    expect(url).toContain(country === 'US' ? 'raw.githubusercontent.com' : 'raw.gitcode.com')
-  })
-
-  it('uses the GitCode mirror inside China', async () => {
-    mockRemote({ dataVersion: 'v2', country: 'CN' })
-
-    await service.check()
-
-    expect(netFetchMock).toHaveBeenCalledWith(expect.stringContaining('raw.gitcode.com'), expect.anything())
-  })
-
-  it('uses the GitCode fallback when country detection fails without caching a guessed country', async () => {
-    mockRemote({ country: null })
-
-    await service.check()
-
-    expect(netFetchMock).toHaveBeenCalledWith(expect.stringContaining('raw.gitcode.com'), expect.anything())
-    expect(regionService.getCachedCountry()).toBeNull()
-    await expect(resolveRegistryBaseUrl()).resolves.toBe(REGISTRY_URL_GITCODE)
     expect(writeSnapshotMock).toHaveBeenCalledTimes(1)
   })
 

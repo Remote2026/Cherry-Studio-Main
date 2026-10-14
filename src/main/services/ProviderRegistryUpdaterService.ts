@@ -58,11 +58,6 @@ const REGISTRY_DATA_CHANGE_EFFECTS = [
   { endpoint: '/providers/:providerId/models/:modelId*/image-generation-support' }
 ] satisfies DataApiDataChangeEffect[]
 
-const CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000
-// Short delay before the first check, letting boot I/O settle. registerInterval
-// only fires after one full interval, so the initial pull is scheduled separately.
-const INITIAL_CHECK_DELAY_MS = 30_000
-
 interface StagedFile {
   file: RemoteRegistryFileName
   body: string
@@ -76,23 +71,14 @@ interface StagedFile {
  * Existing model projections hot-reload in mounted renderers. Brand-new catalog
  * models enter SQLite only through the existing explicit provider-model sync;
  * this background service never writes business rows.
+ *
+ * This deployment performs no automatic pull: the build has no internet egress,
+ * so the remote branch is unreachable and the bundled catalog is authoritative.
+ * `check()` stays callable for manual runs.
  */
 @Injectable('ProviderRegistryUpdaterService')
 @ServicePhase(Phase.WhenReady)
 export class ProviderRegistryUpdaterService extends BaseService {
-  protected onReady(): void {
-    // Dev/test never auto-download — an override under userData would silently
-    // shadow the source catalog a developer just regenerated. `check()` is still
-    // callable directly for manual/test runs.
-    if (!app.isPackaged) return
-
-    this.registerInterval(() => this.check(), CHECK_INTERVAL_MS)
-
-    const initial = setTimeout(() => void this.check(), INITIAL_CHECK_DELAY_MS)
-    initial.unref()
-    this.registerDisposable(() => clearTimeout(initial))
-  }
-
   /** Run one update cycle: fetch → compatibility+revision validate → apply → notify. Never throws. */
   public async check(): Promise<void> {
     try {
