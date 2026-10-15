@@ -997,7 +997,7 @@ describe('expandLegacyDirectoryItem', () => {
 
     expect(result?.pathPrefix).toBe('.cherry_1')
     expect(() => assertSafeKnowledgeRelativePath(result!.container.data.relativePath!)).not.toThrow()
-    expect(() => assertSafeKnowledgeRelativePath(result!.children[0].data.relativePath!)).not.toThrow()
+    expect(() => assertSafeKnowledgeRelativePath(result!.children[0].data.relativePath)).not.toThrow()
   })
 
   it('sanitizes a folder name the native expansion would keep verbatim', () => {
@@ -1066,7 +1066,7 @@ describe('expandLegacyDirectoryItem', () => {
       new Set()
     )
 
-    const paths = result!.children.map((child) => child.data.relativePath!)
+    const paths = result!.children.map((child) => child.data.relativePath)
     expect(paths).toEqual(['docs/sub/untitled/x.md', 'docs/nested/y.md'])
     for (const relativePath of paths) {
       expect(() => assertSafeKnowledgeRelativePath(relativePath)).not.toThrow()

@@ -195,11 +195,10 @@ export const KnowledgePageProvider = ({ children, baseId, onBaseIdChange }: Know
   const syncRagflow = useCallback(async () => {
     try {
       await ipcApi.request('ragflow.sync')
+      await refetchBases()
     } catch (error) {
       toast.error(formatErrorMessageWithPrefix(error, t('knowledge.ragflow.refresh_failed')))
-      return
     }
-    refetchBases()
   }, [refetchBases, t])
 
   // 进入知识库页时静默同步一次镜像。RagFlow 没配好或不可达都不该打断浏览，
@@ -581,6 +580,7 @@ export const KnowledgePageProvider = ({ children, baseId, onBaseIdChange }: Know
       handleCreateBaseCreated,
       handleCreateBaseDialogOpenChange,
       handleCreateGroupDialogOpenChange,
+      handleImportDatasetsDialogOpenChange,
       handleDeleteBase,
       handleDeleteGroup,
       handleSetActiveTab,
