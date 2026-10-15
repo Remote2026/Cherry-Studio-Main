@@ -46,8 +46,12 @@ export function toMaterialRelativePath(item: MaterialFieldSource): string {
   return item.data.relativePath
 }
 
-/** Whether a knowledge item's rebuild source is present, genuinely gone, or merely unverifiable. */
-export type KnowledgeItemSourceState = 'rebuildable' | 'missing' | 'unverifiable'
+/**
+ * Whether a knowledge item's rebuild source is present, genuinely gone, merely
+ * unverifiable, or not local at all (`mirrored`: the content belongs to RagFlow, so
+ * there is nothing here to re-acquire — a different remedy from a vanished file).
+ */
+export type KnowledgeItemSourceState = 'rebuildable' | 'missing' | 'unverifiable' | 'mirrored'
 
 const toSourceState = (probe: PathReadability): KnowledgeItemSourceState =>
   probe === 'readable' ? 'rebuildable' : probe
@@ -86,9 +90,10 @@ export async function classifyKnowledgeItemRestoreSource(
  * delete-and-re-add, and a raw parse error would surface as an opaque reindex failure instead.
  */
 export async function classifyKnowledgeItemReacquireSource(item: KnowledgeItem): Promise<KnowledgeItemSourceState> {
-  // 镜像条目在本地没有源可重新抓取，报 `missing` 才能挡住重建（否则会清空向量却无从重建）。
+  // 镜像条目在本地没有源可重新抓取。它既不是"源没了"也不是"验不了"，而是内容压根
+  // 不在这里——调用方据此给出正确的处理建议，而不是让用户去删一个本地文件。
   if (item.type === 'ragflow') {
-    return 'missing'
+    return 'mirrored'
   }
   if (item.type !== 'file' && item.type !== 'directory') {
     return 'rebuildable'

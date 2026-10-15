@@ -156,9 +156,10 @@ describe('classifyKnowledgeItemReacquireSource', () => {
     expect(probeKnowledgeSourcePathMock).not.toHaveBeenCalled()
   })
 
-  // 镜像条目的向量在 RagFlow 侧，本地重建只会清空却无从重建，必须判为 missing。
-  it('reports a mirrored item as missing so reindex can never be admitted', async () => {
-    await expect(classifyKnowledgeItemReacquireSource(createItem('ragflow'))).resolves.toBe('missing')
+  // 镜像条目的向量在 RagFlow 侧，本地重建只会清空却无从重建。判为 mirrored 而不是
+  // missing：前者说的是"内容不在本地"，处理建议与"文件丢了"完全不同。
+  it('reports a mirrored item as mirrored so reindex can never be admitted', async () => {
+    await expect(classifyKnowledgeItemReacquireSource(createItem('ragflow'))).resolves.toBe('mirrored')
     expect(probeKnowledgeSourcePathMock).not.toHaveBeenCalled()
   })
 

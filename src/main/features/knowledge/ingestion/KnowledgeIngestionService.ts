@@ -512,15 +512,28 @@ export class KnowledgeIngestionService implements KnowledgeItemScheduler {
     // which should retry rather than be destroyed).
     const sourceStates = await Promise.all(roots.map((root) => classifyKnowledgeItemReacquireSource(root)))
 
+    const mirroredItemIds: string[] = []
     const missingSourceItemIds: string[] = []
     const unverifiableSourceItemIds: string[] = []
     roots.forEach((root, index) => {
-      if (sourceStates[index] === 'missing') {
+      if (sourceStates[index] === 'mirrored') {
+        mirroredItemIds.push(root.id)
+      } else if (sourceStates[index] === 'missing') {
         missingSourceItemIds.push(root.id)
       } else if (sourceStates[index] === 'unverifiable') {
         unverifiableSourceItemIds.push(root.id)
       }
     })
+
+    // 镜像条目单独报，因为处理建议完全不同：让用户去删一个不存在的本地文件是误导。
+    if (mirroredItemIds.length > 0) {
+      throw DataApiErrorFactory.validation(
+        {
+          item: [`${mirroredItemIds.length} item(s) are mirrored from RagFlow and have no local source`]
+        },
+        'Cannot reindex a RagFlow-backed knowledge item: its content lives in RagFlow. Change it there, then refresh this knowledge base'
+      )
+    }
 
     const blockingStatusCounts = new Map<KnowledgeItemStatus, number>()
     for (const item of subtreeItems) {

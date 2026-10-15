@@ -3018,7 +3018,9 @@ describe('KnowledgeService', () => {
       )
 
       await expect(service.reindexItems('kb-1', [NOTE_ITEM_ID])).rejects.toMatchObject({
-        code: ErrorCode.VALIDATION_ERROR
+        code: ErrorCode.VALIDATION_ERROR,
+        // 建议必须是"去 RagFlow 改"，不能是本地文件那套"删除后重新添加"。
+        message: expect.stringContaining('its content lives in RagFlow')
       })
 
       expect(enqueueMock).not.toHaveBeenCalled()
