@@ -1,4 +1,4 @@
-import { Plus } from 'lucide-react'
+import { Cloud, Plus } from 'lucide-react'
 import type { MouseEvent as ReactMouseEvent } from 'react'
 import { useCallback, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -24,6 +24,7 @@ interface BaseNavigatorProps {
   onSelectBase: (baseId: string) => void
   onCreateGroup: (baseId: string) => void
   onCreateBase: (groupId?: string) => void
+  onImportDatasets: () => void
   onMoveBase: (baseId: string, groupId: string | null) => Promise<void> | void
   onRenameBase: (base: Pick<KnowledgeBase, 'id' | 'name'>) => void
   onRenameGroup: (group: Pick<Group, 'id' | 'name'>) => void
@@ -41,6 +42,7 @@ const BaseNavigator = ({
   onSelectBase,
   onCreateGroup,
   onCreateBase,
+  onImportDatasets,
   onMoveBase,
   onRenameBase,
   onRenameGroup,
@@ -81,6 +83,13 @@ const BaseNavigator = ({
             label={t('knowledge.add.title')}
             aria-label={t('knowledge.add.title')}
             onClick={() => onCreateBase()}
+          />
+          <ResourceList.HeaderItem
+            type="button"
+            icon={<Cloud />}
+            label={t('knowledge.ragflow.import_title')}
+            aria-label={t('knowledge.ragflow.import_title')}
+            onClick={onImportDatasets}
           />
         </div>
 

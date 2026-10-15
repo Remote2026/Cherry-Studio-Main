@@ -11,7 +11,7 @@ import { useKnowledgePage } from '../KnowledgePageProvider'
  */
 const KnowledgePageEmptyStateSection = () => {
   const { t } = useTranslation()
-  const { openCreateBaseDialog } = useKnowledgePage()
+  const { openCreateBaseDialog, openImportDatasetsDialog } = useKnowledgePage()
 
   return (
     <main data-ui="knowledge.view" className="flex min-h-0 min-w-0 flex-1 flex-col">
@@ -21,6 +21,8 @@ const KnowledgePageEmptyStateSection = () => {
         description={t('knowledge.empty_description')}
         actionLabel={t('knowledge.empty_action')}
         onAction={() => openCreateBaseDialog()}
+        secondaryLabel={t('knowledge.ragflow.import_title')}
+        onSecondary={openImportDatasetsDialog}
       />
     </main>
   )

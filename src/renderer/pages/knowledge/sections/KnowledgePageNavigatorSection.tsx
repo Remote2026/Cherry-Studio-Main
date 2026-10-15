@@ -19,6 +19,7 @@ const KnowledgePageNavigatorSection = () => {
     selectBase,
     openCreateGroupDialog,
     openCreateBaseDialog,
+    openImportDatasetsDialog,
     moveBase,
     openRenameBaseDialog,
     openRenameGroupDialog,
@@ -53,6 +54,7 @@ const KnowledgePageNavigatorSection = () => {
       onSelectBase={selectBase}
       onCreateGroup={openCreateGroupDialog}
       onCreateBase={openCreateBaseDialog}
+      onImportDatasets={openImportDatasetsDialog}
       onMoveBase={moveBase}
       onRenameBase={openRenameBaseDialog}
       onRenameGroup={openRenameGroupDialog}

@@ -1,4 +1,4 @@
-import { ArrowRightLeft, FolderPlus, PencilLine, Trash2 } from 'lucide-react'
+import { ArrowRightLeft, Cloud, FolderPlus, PencilLine, Trash2 } from 'lucide-react'
 import { useCallback, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -52,16 +52,21 @@ const KnowledgeBaseRow = ({
     await onDeleteBase(base.id)
   }, [base.id, onDeleteBase])
 
+  const isMirrored = base.source === 'ragflow'
+
   const contextMenuItems = useMemo<CommandContextMenuExtraItem[]>(() => {
-    const items: CommandContextMenuExtraItem[] = [
-      {
-        type: 'item',
-        id: 'rename',
-        label: t('knowledge.context.rename'),
-        icon: <PencilLine className="size-3.5" />,
-        onSelect: handleRenameBase
-      }
-    ]
+    // 镜像库的名字归 RagFlow：下一次同步就会把它改回去，所以不提供重命名。
+    const items: CommandContextMenuExtraItem[] = isMirrored
+      ? []
+      : [
+          {
+            type: 'item',
+            id: 'rename',
+            label: t('knowledge.context.rename'),
+            icon: <PencilLine className="size-3.5" />,
+            onSelect: handleRenameBase
+          }
+        ]
 
     if (canMoveToUngrouped || availableGroups.length > 0) {
       items.push({
@@ -131,6 +136,7 @@ const KnowledgeBaseRow = ({
     availableGroups,
     base,
     canMoveToUngrouped,
+    isMirrored,
     handleCreateGroup,
     handleMoveBase,
     handleRenameBase,
@@ -154,6 +160,12 @@ const KnowledgeBaseRow = ({
             onClick={() => onSelectBase(base.id)}
             className="flex min-h-0 min-w-0 flex-1 items-center justify-start rounded-md p-0 text-left shadow-none hover:bg-transparent">
             <div className="min-w-0 truncate text-sm leading-5 font-normal text-foreground">{base.name}</div>
+            {isMirrored ? (
+              <Cloud
+                aria-label={t('knowledge.data_source.filters.ragflow')}
+                className="size-3.5 shrink-0 text-sky-500"
+              />
+            ) : null}
           </Button>
           <KnowledgeRowActionsMenu items={contextMenuItems} />
         </div>

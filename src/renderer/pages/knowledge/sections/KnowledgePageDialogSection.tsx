@@ -9,6 +9,7 @@ const CreateKnowledgeGroupDialog = lazy(() => import('../components/CreateKnowle
 const KnowledgeBaseNameDialog = lazy(() => import('../components/KnowledgeBaseNameDialog'))
 const RenameKnowledgeGroupDialog = lazy(() => import('../components/RenameKnowledgeGroupDialog'))
 const RestoreKnowledgeBaseDialog = lazy(() => import('../components/RestoreKnowledgeBaseDialog'))
+const ImportRagflowDatasetsDialog = lazy(() => import('../components/ImportRagflowDatasetsDialog'))
 
 const KnowledgePageDialogSection = () => {
   const {
@@ -20,6 +21,8 @@ const KnowledgePageDialogSection = () => {
     isAddSourceDialogOpen,
     isCreateBaseDialogOpen,
     isCreateGroupDialogOpen,
+    isImportDatasetsDialogOpen,
+    importedRagflowRemoteIds,
     createBaseInitialGroupId,
     isCreatingBase,
     isCreatingGroup,
@@ -29,6 +32,7 @@ const KnowledgePageDialogSection = () => {
     createBase,
     restoreBase,
     handleAddSourceDialogOpenChange,
+    handleImportDatasetsDialogOpenChange,
     handleCreateBaseCreated,
     handleCreateBaseDialogOpenChange,
     handleCreateGroupDialogOpenChange,
@@ -43,6 +47,15 @@ const KnowledgePageDialogSection = () => {
 
   return (
     <Suspense fallback={null}>
+      {isImportDatasetsDialogOpen ? (
+        <ImportRagflowDatasetsDialog
+          open={isImportDatasetsDialogOpen}
+          importedRemoteIds={importedRagflowRemoteIds}
+          onOpenChange={handleImportDatasetsDialogOpenChange}
+          onImported={() => handleImportDatasetsDialogOpenChange(false)}
+        />
+      ) : null}
+
       {isAddSourceDialogOpen ? (
         <AddKnowledgeItemDialog open={isAddSourceDialogOpen} onOpenChange={handleAddSourceDialogOpenChange} />
       ) : null}

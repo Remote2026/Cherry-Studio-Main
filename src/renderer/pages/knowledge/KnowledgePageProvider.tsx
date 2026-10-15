@@ -11,6 +11,7 @@ import {
 } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { loggerService } from '@logger'
 import {
   useCreateKnowledgeBase,
   useDeleteKnowledgeBase,
@@ -18,6 +19,7 @@ import {
   useRestoreKnowledgeBase,
   useUpdateKnowledgeBase
 } from '@renderer/hooks/useKnowledgeBase'
+import { ipcApi } from '@renderer/ipc'
 import { EVENT_NAMES, EventEmitter } from '@renderer/services/EventService'
 import { toast } from '@renderer/services/toast'
 import { formatErrorMessageWithPrefix } from '@renderer/utils/error'
@@ -33,6 +35,8 @@ import {
 } from './hooks/useKnowledgeGroups'
 import type { KnowledgeRestoreBaseInitialValues } from './panels/ragConfig/RagConfigPanel'
 import type { KnowledgeFilePreviewTarget, KnowledgeTabKey } from './types'
+
+const logger = loggerService.withContext('KnowledgePage')
 
 type EditableKnowledgeGroup = Pick<Group, 'id' | 'name'>
 type EditableKnowledgeBase = Pick<KnowledgeBase, 'id' | 'name'>
@@ -63,6 +67,9 @@ interface KnowledgePageContextValue {
   isRecallTestDrawerOpen: boolean
   isCreateBaseDialogOpen: boolean
   isCreateGroupDialogOpen: boolean
+  isImportDatasetsDialogOpen: boolean
+  /** 已经镜像过的 RagFlow 数据集 id，导入对话框据此把它们排除在候选之外。 */
+  importedRagflowRemoteIds: ReadonlySet<string>
   createBaseInitialGroupId: string | undefined
   isCreatingBase: boolean
   isCreatingGroup: boolean
@@ -84,11 +91,15 @@ interface KnowledgePageContextValue {
   handleRagConfigDrawerOpenChange: (open: boolean) => void
   handleRecallTestDrawerOpenChange: (open: boolean) => void
   openCreateBaseDialog: (groupId?: string) => void
+  openImportDatasetsDialog: () => void
   openCreateGroupDialog: (baseIdToMove?: string) => void
   openRenameBaseDialog: (base: EditableKnowledgeBase) => void
   openRenameGroupDialog: (group: EditableKnowledgeGroup) => void
   openRestoreBaseDialog: (base: KnowledgeBase, initialValues?: KnowledgeRestoreBaseInitialValues) => void
   handleAddSourceDialogOpenChange: (open: boolean) => void
+  handleImportDatasetsDialogOpenChange: (open: boolean) => void
+  /** 手动刷新镜像库；与打开页面时的静默同步不同，失败会报给用户。 */
+  syncRagflow: () => Promise<void>
   handleCreateBaseDialogOpenChange: (open: boolean) => void
   handleCreateGroupDialogOpenChange: (open: boolean) => void
   handleRenameBaseDialogOpenChange: (open: boolean) => void
@@ -113,7 +124,7 @@ interface KnowledgePageProviderProps extends PropsWithChildren {
 
 export const KnowledgePageProvider = ({ children, baseId, onBaseIdChange }: KnowledgePageProviderProps) => {
   const { t } = useTranslation()
-  const { bases, isLoading, error: basesError } = useKnowledgeBases()
+  const { bases, isLoading, error: basesError, refetch: refetchBases } = useKnowledgeBases()
   const { groups } = useKnowledgeGroups()
   const { createGroup, isCreating: isCreatingGroup } = useCreateKnowledgeGroup()
   const { createBase, isCreating: isCreatingBase } = useCreateKnowledgeBase()
@@ -144,6 +155,7 @@ export const KnowledgePageProvider = ({ children, baseId, onBaseIdChange }: Know
   const [isRagConfigDrawerOpen, setIsRagConfigDrawerOpen] = useState(false)
   const [isRecallTestDrawerOpen, setIsRecallTestDrawerOpen] = useState(false)
   const [isCreateBaseDialogOpen, setIsCreateBaseDialogOpen] = useState(false)
+  const [isImportDatasetsDialogOpen, setIsImportDatasetsDialogOpen] = useState(false)
   const [createBaseInitialGroupId, setCreateBaseInitialGroupId] = useState<string | undefined>()
   const [isCreateGroupDialogOpen, setIsCreateGroupDialogOpen] = useState(false)
   // Set when the create-group dialog is opened from a base's context menu: the
@@ -174,6 +186,30 @@ export const KnowledgePageProvider = ({ children, baseId, onBaseIdChange }: Know
     },
     [previewNavigationVersion]
   )
+
+  const importedRagflowRemoteIds = useMemo(
+    () => new Set(bases.flatMap((base) => (base.source === 'ragflow' && base.remoteId ? [base.remoteId] : []))),
+    [bases]
+  )
+
+  const syncRagflow = useCallback(async () => {
+    try {
+      await ipcApi.request('ragflow.sync')
+    } catch (error) {
+      toast.error(formatErrorMessageWithPrefix(error, t('knowledge.ragflow.refresh_failed')))
+      return
+    }
+    refetchBases()
+  }, [refetchBases, t])
+
+  // 进入知识库页时静默同步一次镜像。RagFlow 没配好或不可达都不该打断浏览，
+  // 所以这里只留一条调试日志；想看到失败原因走详情页的刷新按钮。
+  useEffect(() => {
+    void ipcApi
+      .request('ragflow.sync')
+      .then(() => refetchBases())
+      .catch((error) => logger.debug('RagFlow sync on page open failed', { error }))
+  }, [refetchBases])
 
   useEffect(() => {
     if (isLoading || basesError) return
@@ -268,6 +304,10 @@ export const KnowledgePageProvider = ({ children, baseId, onBaseIdChange }: Know
     setIsCreateBaseDialogOpen(true)
   }, [])
 
+  const openImportDatasetsDialog = useCallback(() => {
+    setIsImportDatasetsDialogOpen(true)
+  }, [])
+
   const openAddSourceDialog = useCallback((source?: KnowledgeItemType, files?: File[]) => {
     setPendingAddSource(source)
     setPendingAddFiles(files?.length ? files : undefined)
@@ -317,6 +357,10 @@ export const KnowledgePageProvider = ({ children, baseId, onBaseIdChange }: Know
     if (!open) {
       setCreateBaseInitialGroupId(undefined)
     }
+  }, [])
+
+  const handleImportDatasetsDialogOpenChange = useCallback((open: boolean) => {
+    setIsImportDatasetsDialogOpen(open)
   }, [])
 
   const handleAddSourceDialogOpenChange = useCallback((open: boolean) => {
@@ -478,6 +522,8 @@ export const KnowledgePageProvider = ({ children, baseId, onBaseIdChange }: Know
       isRecallTestDrawerOpen,
       isCreateBaseDialogOpen,
       isCreateGroupDialogOpen,
+      isImportDatasetsDialogOpen,
+      importedRagflowRemoteIds,
       createBaseInitialGroupId,
       isCreatingBase,
       isCreatingGroup,
@@ -499,11 +545,14 @@ export const KnowledgePageProvider = ({ children, baseId, onBaseIdChange }: Know
       handleRagConfigDrawerOpenChange,
       handleRecallTestDrawerOpenChange,
       openCreateBaseDialog,
+      openImportDatasetsDialog,
+      syncRagflow,
       openCreateGroupDialog,
       openRenameBaseDialog,
       openRenameGroupDialog,
       openRestoreBaseDialog,
       handleAddSourceDialogOpenChange,
+      handleImportDatasetsDialogOpenChange,
       handleCreateBaseDialogOpenChange,
       handleCreateGroupDialogOpenChange,
       handleRenameBaseDialogOpenChange,
@@ -550,6 +599,8 @@ export const KnowledgePageProvider = ({ children, baseId, onBaseIdChange }: Know
       openRecallTestDrawer,
       isCreateBaseDialogOpen,
       isCreateGroupDialogOpen,
+      isImportDatasetsDialogOpen,
+      importedRagflowRemoteIds,
       createBaseInitialGroupId,
       isCreatingBase,
       isCreatingGroup,
@@ -565,6 +616,8 @@ export const KnowledgePageProvider = ({ children, baseId, onBaseIdChange }: Know
       openItemChunks,
       openItemContent,
       openCreateBaseDialog,
+      openImportDatasetsDialog,
+      syncRagflow,
       openCreateGroupDialog,
       openRenameBaseDialog,
       openRenameGroupDialog,
