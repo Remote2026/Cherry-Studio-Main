@@ -39,7 +39,8 @@ const KnowledgePageDetailSection = () => {
     openRecallTestDrawer,
     handleRagConfigDrawerOpenChange,
     handleRecallTestDrawerOpenChange,
-    openRestoreBaseDialog
+    openRestoreBaseDialog,
+    syncRagflow
   } = useKnowledgePage()
 
   // Directory drill-down: the stack holds the directory items descended into (empty = base root).
@@ -74,6 +75,8 @@ const KnowledgePageDetailSection = () => {
     return null
   }
 
+  const isMirroredBase = selectedBase.source === 'ragflow'
+
   return (
     <main data-ui="knowledge.content" className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
       {!selectedItemId && !filePreview ? (
@@ -82,6 +85,7 @@ const KnowledgePageDetailSection = () => {
           onOpenRagConfig={openRagConfigDrawer}
           onOpenRecallTest={openRecallTestDrawer}
           onRebuild={() => openRestoreBaseDialog(selectedBase)}
+          onRefresh={isMirroredBase ? () => void syncRagflow() : undefined}
         />
       ) : null}
 
@@ -122,6 +126,7 @@ const KnowledgePageDetailSection = () => {
             items={selectedBaseItems}
             total={selectedBaseItemsTotal}
             isLoading={isItemsLoading}
+            isReadOnly={isMirroredBase}
             hasMore={hasMoreItems}
             isLoadingMore={isLoadingMoreItems}
             onLoadMore={loadMoreItems}
@@ -133,10 +138,11 @@ const KnowledgePageDetailSection = () => {
             onDrillIntoDirectory={drillIntoDirectory}
             currentDirectory={currentDirectory}
             onNavigateUp={navigateUp}
-            onDelete={deleteItem}
-            onDeleteItems={deleteItems}
-            onReindex={reindexItem}
-            onReindexItems={reindexItems}
+            // 镜像库的条目归 RagFlow 管，本地不提供删除与重建。
+            onDelete={isMirroredBase ? undefined : deleteItem}
+            onDeleteItems={isMirroredBase ? undefined : deleteItems}
+            onReindex={isMirroredBase ? undefined : reindexItem}
+            onReindexItems={isMirroredBase ? undefined : reindexItems}
           />
         )}
       </div>

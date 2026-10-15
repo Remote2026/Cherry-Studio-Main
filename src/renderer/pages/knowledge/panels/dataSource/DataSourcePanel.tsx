@@ -28,6 +28,8 @@ export interface DataSourcePanelProps {
   /** Server-side total across all pages. Defaults to the loaded count when omitted. */
   total?: number
   isLoading: boolean
+  /** 镜像库：内容在远端，本地不提供任何新增/删除/重建入口。 */
+  isReadOnly?: boolean
   /** Cursor-pagination controls; default to a fully-loaded list when omitted. */
   hasMore?: boolean
   isLoadingMore?: boolean
@@ -45,10 +47,11 @@ export interface DataSourcePanelProps {
   currentDirectory?: KnowledgeItemOf<'directory'> | null
   /** Navigate one level up out of {@link currentDirectory}. */
   onNavigateUp?: () => void
-  onDelete: (item: KnowledgeItem) => void | Promise<unknown>
-  onDeleteItems: (itemIds: string[]) => void | Promise<unknown>
-  onReindex: (item: KnowledgeItem) => void | Promise<unknown>
-  onReindexItems: (itemIds: string[]) => void | Promise<unknown>
+  // 缺席即表示只读：对应入口不出现。
+  onDelete?: (item: KnowledgeItem) => void | Promise<unknown>
+  onDeleteItems?: (itemIds: string[]) => void | Promise<unknown>
+  onReindex?: (item: KnowledgeItem) => void | Promise<unknown>
+  onReindexItems?: (itemIds: string[]) => void | Promise<unknown>
 }
 
 type LocalEmbeddingStatus = Exclude<LocalModelStatus, 'ready'>
@@ -152,6 +155,7 @@ const DataSourcePanelContent = ({
   items,
   total = items.length,
   isLoading,
+  isReadOnly = false,
   hasMore = false,
   isLoadingMore = false,
   onLoadMore = () => undefined,
@@ -203,9 +207,16 @@ const DataSourcePanelContent = ({
         void previewSource(item)
         return
       }
+      // 镜像条目在本地没有内容可预览，落到它的分块视图上。
+      if (item.type === 'ragflow') {
+        if (item.status === 'completed') {
+          onItemClick?.(item.id)
+        }
+        return
+      }
       onViewNoteContent?.(item.id)
     },
-    [invalidatePreviewRequests, onDrillIntoDirectory, onViewNoteContent, previewSource]
+    [invalidatePreviewRequests, onDrillIntoDirectory, onItemClick, onViewNoteContent, previewSource]
   )
 
   const handleNavigateUp = useCallback(() => {
@@ -246,7 +257,7 @@ const DataSourcePanelContent = ({
     }
 
     try {
-      await onReindexItems(reindexableItems.map((item) => item.id))
+      await onReindexItems?.(reindexableItems.map((item) => item.id))
     } catch (error) {
       toast.error(formatErrorMessageWithPrefix(error, t('knowledge.data_source.reindex_failed')))
       return
@@ -260,7 +271,7 @@ const DataSourcePanelContent = ({
   const handleBulkDelete = useCallback(async () => {
     const itemIds = items.filter((item) => selectedIds.has(item.id)).map((item) => item.id)
     try {
-      await onDeleteItems(itemIds)
+      await onDeleteItems?.(itemIds)
     } catch (error) {
       toast.error(formatErrorMessageWithPrefix(error, t('knowledge.data_source.delete_failed')))
       return
@@ -275,7 +286,7 @@ const DataSourcePanelContent = ({
     }
 
     try {
-      await onDelete(pendingDeleteItem)
+      await onDelete?.(pendingDeleteItem)
     } catch (error) {
       toast.error(formatErrorMessageWithPrefix(error, t('knowledge.data_source.delete_failed')))
       return
@@ -296,7 +307,7 @@ const DataSourcePanelContent = ({
   )
   const { isDragging, handleDragEnter, handleDragLeave, handleDragOver, handleDrop } =
     useDrag<HTMLDivElement>(handleFileDrop)
-  const canAddSource = !currentDirectory && !localEmbeddingState
+  const canAddSource = !currentDirectory && !localEmbeddingState && !isReadOnly
   const localModelStatus =
     localEmbeddingState && (items.length > 0 || Boolean(currentDirectory))
       ? {
@@ -364,6 +375,11 @@ const DataSourcePanelContent = ({
             <div className="flex min-h-0 flex-1 items-center justify-center px-6 py-12 text-center text-foreground-tertiary text-sm">
               {t('knowledge.data_source.empty_folder')}
             </div>
+          ) : isReadOnly ? (
+            // 镜像库的文档归远端管，本地没有可添加的东西。
+            <div className="flex min-h-0 flex-1 items-center justify-center px-6 py-12 text-center text-foreground-tertiary text-sm">
+              {t('knowledge.ragflow.empty_dataset')}
+            </div>
           ) : (
             <DataSourceEmptyState onAddSource={handleAddSource} />
           )
@@ -378,10 +394,12 @@ const DataSourcePanelContent = ({
             onToggleOne={handleToggleOne}
             onToggleAll={handleToggleAll}
             onActivate={handleActivateItem}
-            onDelete={setPendingDeleteItem}
-            onPreviewSource={previewSource}
-            onReindex={onReindex}
             onViewChunks={handleItemClick}
+            selectable={!isReadOnly}
+            onDelete={onDelete ? setPendingDeleteItem : undefined}
+            // 镜像条目在本地没有文件可预览。
+            onPreviewSource={isReadOnly ? undefined : previewSource}
+            onReindex={onReindex}
           />
         )}
       </div>

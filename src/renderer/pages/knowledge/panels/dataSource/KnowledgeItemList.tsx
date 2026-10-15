@@ -10,7 +10,11 @@ import { KNOWLEDGE_ITEMS_PAGE_SIZE } from '@renderer/hooks/useKnowledgeItems'
 import type { KnowledgeItem } from '@shared/data/types/knowledge'
 
 import KnowledgeItemRow from './KnowledgeItemRow'
-import { KNOWLEDGE_ITEM_ROW_GRID, knowledgeDataSourceCheckboxClassName } from './styles'
+import {
+  KNOWLEDGE_ITEM_ROW_GRID,
+  KNOWLEDGE_ITEM_ROW_GRID_READ_ONLY,
+  knowledgeDataSourceCheckboxClassName
+} from './styles'
 
 export interface KnowledgeItemListProps {
   items: KnowledgeItem[]
@@ -23,10 +27,13 @@ export interface KnowledgeItemListProps {
   onToggleAll: (next: boolean) => void
   /** Left-click / Enter on a row: open the source, drill into a directory, or view a note's chunks. */
   onActivate: (item: KnowledgeItem) => void
-  onDelete: (item: KnowledgeItem) => void | Promise<unknown>
-  onPreviewSource: (item: KnowledgeItem) => void | Promise<unknown>
-  onReindex: (item: KnowledgeItem) => void | Promise<unknown>
   onViewChunks: (itemId: string) => void
+  /** 只读列表不渲染选择列与批量操作。 */
+  selectable?: boolean
+  // 只读列表不传这些回调，对应的行内动作随之消失。
+  onDelete?: (item: KnowledgeItem) => void | Promise<unknown>
+  onPreviewSource?: (item: KnowledgeItem) => void | Promise<unknown>
+  onReindex?: (item: KnowledgeItem) => void | Promise<unknown>
 }
 
 const ITEM_ESTIMATED_HEIGHT = 44
@@ -41,10 +48,11 @@ const KnowledgeItemList = ({
   onToggleOne,
   onToggleAll,
   onActivate,
+  onViewChunks,
+  selectable = true,
   onDelete,
   onPreviewSource,
-  onReindex,
-  onViewChunks
+  onReindex
 }: KnowledgeItemListProps) => {
   const { t } = useTranslation()
   const pendingLoadMoreRef = useRef(false)
@@ -85,13 +93,14 @@ const KnowledgeItemList = ({
         selected={selectedIds.has(item.id)}
         onToggleSelect={(next) => onToggleOne(item.id, next)}
         onClick={() => onActivate(item)}
-        onDelete={() => onDelete(item)}
-        onPreviewSource={() => onPreviewSource(item)}
-        onReindex={() => onReindex(item)}
+        onDelete={onDelete ? () => onDelete(item) : undefined}
+        onPreviewSource={onPreviewSource ? () => onPreviewSource(item) : undefined}
+        onReindex={onReindex ? () => onReindex(item) : undefined}
         onViewChunks={() => onViewChunks(item.id)}
+        selectable={selectable}
       />
     ),
-    [onActivate, onDelete, onPreviewSource, onReindex, onToggleOne, onViewChunks, selectedIds]
+    [onActivate, onDelete, onPreviewSource, onReindex, onToggleOne, onViewChunks, selectable, selectedIds]
   )
 
   if (isLoading) {
@@ -120,19 +129,26 @@ const KnowledgeItemList = ({
         role="grid"
         aria-label={t('knowledge.data_source.table.aria_label')}
         className="flex min-h-0 flex-1 flex-col">
-        <div role="row" className={cn(KNOWLEDGE_ITEM_ROW_GRID, 'mb-2 h-11 shrink-0 border-b border-border px-2.5')}>
-          <div role="columnheader" className="flex items-center self-stretch">
-            {/* Full-cell label so the whole select-all column is clickable, matching the rows. */}
-            <label className="flex size-full cursor-pointer items-center">
-              <Checkbox
-                size="sm"
-                className={knowledgeDataSourceCheckboxClassName}
-                aria-label={t('knowledge.data_source.table.select_all')}
-                checked={allSelected ? true : someSelected ? 'indeterminate' : false}
-                onCheckedChange={(checked) => onToggleAll(checked === true)}
-              />
-            </label>
-          </div>
+        <div
+          role="row"
+          className={cn(
+            selectable ? KNOWLEDGE_ITEM_ROW_GRID : KNOWLEDGE_ITEM_ROW_GRID_READ_ONLY,
+            'mb-2 h-11 shrink-0 border-b border-border px-2.5'
+          )}>
+          {selectable ? (
+            <div role="columnheader" className="flex items-center self-stretch">
+              {/* Full-cell label so the whole select-all column is clickable, matching the rows. */}
+              <label className="flex size-full cursor-pointer items-center">
+                <Checkbox
+                  size="sm"
+                  className={knowledgeDataSourceCheckboxClassName}
+                  aria-label={t('knowledge.data_source.table.select_all')}
+                  checked={allSelected ? true : someSelected ? 'indeterminate' : false}
+                  onCheckedChange={(checked) => onToggleAll(checked === true)}
+                />
+              </label>
+            </div>
+          ) : null}
           <div role="columnheader" className="min-w-0 text-xs font-medium text-foreground-tertiary">
             {t('knowledge.data_source.table.columns.name')}
           </div>

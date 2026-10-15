@@ -14,7 +14,11 @@ import { formatErrorMessageWithPrefix } from '@renderer/utils/error'
 import { formatRelativeTime } from '@renderer/utils/time'
 import type { KnowledgeItem } from '@shared/data/types/knowledge'
 
-import { KNOWLEDGE_ITEM_ROW_GRID, knowledgeDataSourceCheckboxClassName } from './styles'
+import {
+  KNOWLEDGE_ITEM_ROW_GRID,
+  KNOWLEDGE_ITEM_ROW_GRID_READ_ONLY,
+  knowledgeDataSourceCheckboxClassName
+} from './styles'
 import { type DataSourceStatusViewModel, dataSourceTypeDisplayConfig } from './utils/models'
 import { canReindexKnowledgeItem, toKnowledgeItemRowViewModel } from './utils/selectors'
 
@@ -23,10 +27,13 @@ export interface KnowledgeItemRowProps {
   selected: boolean
   onToggleSelect: (next: boolean) => void
   onClick: () => void
-  onDelete: () => void | Promise<unknown>
-  onPreviewSource: () => void | Promise<unknown>
-  onReindex: () => void | Promise<unknown>
   onViewChunks: () => void
+  /** 只读列表不渲染选择列。 */
+  selectable?: boolean
+  // 只读条目（镜像来的）不提供这些动作；回调缺席即表示该项不出现。
+  onDelete?: () => void | Promise<unknown>
+  onPreviewSource?: () => void | Promise<unknown>
+  onReindex?: () => void | Promise<unknown>
 }
 
 /**
@@ -105,10 +112,11 @@ const KnowledgeItemRow = ({
   selected,
   onToggleSelect,
   onClick,
+  onViewChunks,
+  selectable = true,
   onDelete,
   onPreviewSource,
-  onReindex,
-  onViewChunks
+  onReindex
 }: KnowledgeItemRowProps) => {
   const {
     i18n: { language },
@@ -137,7 +145,7 @@ const KnowledgeItemRow = ({
 
     // Notes have no external source to preview — their original text opens via the row's primary
     // click — so the "preview original" action only applies to files, URLs, and directories.
-    if (item.type !== 'note') {
+    if (item.type !== 'note' && onPreviewSource) {
       items.push({
         type: 'item',
         id: 'preview-source',
@@ -161,7 +169,7 @@ const KnowledgeItemRow = ({
       })
     }
 
-    if (canReindex) {
+    if (canReindex && onReindex) {
       items.push({
         type: 'item',
         id: 'reindex',
@@ -175,19 +183,21 @@ const KnowledgeItemRow = ({
       })
     }
 
-    items.push({ type: 'separator' })
-    items.push({
-      type: 'item',
-      id: 'delete',
-      label: t('knowledge.data_source.actions.delete'),
-      icon: <Trash2 className="size-3.5" />,
-      destructive: true,
-      onSelect: () => {
-        void Promise.resolve(onDelete()).catch((error) => {
-          toast.error(formatErrorMessageWithPrefix(error, t('knowledge.data_source.delete_failed')))
-        })
-      }
-    })
+    if (onDelete) {
+      items.push({ type: 'separator' })
+      items.push({
+        type: 'item',
+        id: 'delete',
+        label: t('knowledge.data_source.actions.delete'),
+        icon: <Trash2 className="size-3.5" />,
+        destructive: true,
+        onSelect: () => {
+          void Promise.resolve(onDelete()).catch((error) => {
+            toast.error(formatErrorMessageWithPrefix(error, t('knowledge.data_source.delete_failed')))
+          })
+        }
+      })
+    }
 
     return items
   }, [canReindex, canViewChunks, item.type, onDelete, onPreviewSource, onReindex, onViewChunks, t])
@@ -214,26 +224,28 @@ const KnowledgeItemRow = ({
         onClick={canActivate ? onClick : undefined}
         onKeyDown={canActivate ? handleRowKeyDown : undefined}
         className={cn(
-          KNOWLEDGE_ITEM_ROW_GRID,
+          selectable ? KNOWLEDGE_ITEM_ROW_GRID : KNOWLEDGE_ITEM_ROW_GRID_READ_ONLY,
           'group/row rounded-md px-2.5 py-1.5 transition-colors',
           canActivate && 'cursor-pointer focus-visible:bg-muted focus-visible:outline-none',
           // Match the navigator base rows: hover highlight for any row, solid selected background
           // for the checked one.
           selected ? 'bg-muted' : 'hover:bg-muted'
         )}>
-        <div role="gridcell" className="flex items-center self-stretch" onClick={(event) => event.stopPropagation()}>
-          {/* The label fills the whole cell so a click anywhere in the checkbox column toggles
-              selection; the cell's stopPropagation keeps that click from also opening the row. */}
-          <label className="flex size-full cursor-pointer items-center">
-            <Checkbox
-              size="sm"
-              className={knowledgeDataSourceCheckboxClassName}
-              aria-label={t('knowledge.data_source.table.select_row')}
-              checked={selected}
-              onCheckedChange={(next) => onToggleSelect(next === true)}
-            />
-          </label>
-        </div>
+        {selectable ? (
+          <div role="gridcell" className="flex items-center self-stretch" onClick={(event) => event.stopPropagation()}>
+            {/* The label fills the whole cell so a click anywhere in the checkbox column toggles
+                selection; the cell's stopPropagation keeps that click from also opening the row. */}
+            <label className="flex size-full cursor-pointer items-center">
+              <Checkbox
+                size="sm"
+                className={knowledgeDataSourceCheckboxClassName}
+                aria-label={t('knowledge.data_source.table.select_row')}
+                checked={selected}
+                onCheckedChange={(next) => onToggleSelect(next === true)}
+              />
+            </label>
+          </div>
+        ) : null}
         <div role="gridcell" className="flex min-w-0 items-center gap-2">
           <span className="flex size-6 shrink-0 items-center justify-center rounded bg-background-subtle">
             <Icon className={cn('size-3.5', icon.iconClassName)} />
@@ -265,7 +277,7 @@ const KnowledgeItemRow = ({
           {updatedAt}
         </div>
         <div role="gridcell" className="flex items-center justify-center" onClick={(event) => event.stopPropagation()}>
-          <KnowledgeRowActionsMenu items={contextMenuItems} />
+          {contextMenuItems.length > 0 ? <KnowledgeRowActionsMenu items={contextMenuItems} /> : null}
         </div>
       </div>
     </CommandContextMenu>

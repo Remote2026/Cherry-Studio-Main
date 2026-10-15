@@ -1,4 +1,4 @@
-import { FlaskConical, SlidersHorizontal } from 'lucide-react'
+import { FlaskConical, RefreshCw, SlidersHorizontal } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 import { Badge, Button, PageHeader } from '@cherrystudio/ui'
@@ -11,9 +11,11 @@ interface DetailHeaderProps {
   onOpenRagConfig: () => void
   onOpenRecallTest: () => void
   onRebuild: () => void
+  /** 镜像库拉取远端最新状态；本地库没有这个概念，因此只有它为真时按钮才出现。 */
+  onRefresh?: () => void
 }
 
-const DetailHeader = ({ base, onOpenRagConfig, onOpenRecallTest, onRebuild }: DetailHeaderProps) => {
+const DetailHeader = ({ base, onOpenRagConfig, onOpenRecallTest, onRebuild, onRefresh }: DetailHeaderProps) => {
   const { t } = useTranslation()
 
   const statusLabelKey = `knowledge.status.${base.status}` as const
@@ -47,15 +49,27 @@ const DetailHeader = ({ base, onOpenRagConfig, onOpenRecallTest, onRebuild }: De
               <FlaskConical size={14} />
               {t('knowledge.tabs.recall_test')}
             </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-sm"
-              aria-label={t('knowledge.tabs.rag_config')}
-              className="size-6 text-muted-foreground hover:text-foreground"
-              onClick={onOpenRagConfig}>
-              <SlidersHorizontal size={14} />
-            </Button>
+            {onRefresh ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                aria-label={t('knowledge.ragflow.refresh')}
+                className="size-6 text-muted-foreground hover:text-foreground"
+                onClick={onRefresh}>
+                <RefreshCw size={14} />
+              </Button>
+            ) : (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                aria-label={t('knowledge.tabs.rag_config')}
+                className="size-6 text-muted-foreground hover:text-foreground"
+                onClick={onOpenRagConfig}>
+                <SlidersHorizontal size={14} />
+              </Button>
+            )}
           </div>
         )
       }

@@ -16,3 +16,6 @@ export const knowledgeDataSourceCheckboxClassName =
 // "59 minutes ago") and stay put on shrink, so the flexible name column absorbs all
 // the freed space.
 export const KNOWLEDGE_ITEM_ROW_GRID = 'grid grid-cols-[2.5rem_minmax(0,1fr)_4rem_7rem_6rem_2rem] items-center gap-2'
+
+// 只读列表（镜像库）没有批量操作，选择列随之取消——否则勾选之后无事可做。
+export const KNOWLEDGE_ITEM_ROW_GRID_READ_ONLY = 'grid grid-cols-[minmax(0,1fr)_4rem_7rem_6rem_2rem] items-center gap-2'

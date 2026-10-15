@@ -1,6 +1,7 @@
 import { application } from '@application'
 import { KeyedMutex } from '@main/core/concurrency/KeyedMutex'
 import { BaseService, DependsOn, Injectable, Phase, ServicePhase } from '@main/core/lifecycle'
+import { listRagflowItemChunks, resolveMirroredItem } from '@main/features/ragflow'
 import type { UpdateKnowledgeBaseDto } from '@shared/data/api/schemas/knowledges'
 import type {
   CreateKnowledgeBaseDto,
@@ -137,6 +138,12 @@ export class KnowledgeService extends BaseService {
   }
 
   async listItemChunks(baseId: string, itemId: string): Promise<KnowledgeItemChunk[]> {
+    // 镜像条目的分块在 RagFlow 侧，本地索引库里没有它的任何记录。
+    const mirrored = resolveMirroredItem(baseId, itemId)
+    if (mirrored) {
+      return await listRagflowItemChunks(mirrored)
+    }
+
     return await this.queryService.listItemChunks(baseId, itemId)
   }
 
