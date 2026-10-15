@@ -1,7 +1,12 @@
 import { application } from '@application'
 import { KeyedMutex } from '@main/core/concurrency/KeyedMutex'
 import { BaseService, DependsOn, Injectable, Phase, ServicePhase } from '@main/core/lifecycle'
-import { listRagflowItemChunks, resolveMirroredItem } from '@main/features/ragflow'
+import {
+  isMirroredBase,
+  listRagflowItemChunks,
+  resolveMirroredItem,
+  searchRagflowKnowledge
+} from '@main/features/ragflow'
 import type { UpdateKnowledgeBaseDto } from '@shared/data/api/schemas/knowledges'
 import type {
   CreateKnowledgeBaseDto,
@@ -134,6 +139,12 @@ export class KnowledgeService extends BaseService {
   }
 
   async search(baseId: string, query: string): Promise<KnowledgeSearchResult[]> {
+    // 镜像库没有本地索引，检索整条走 RagFlow；两种来源在这里分流，召回测试与
+    // 智能体的 kb_search 都汇聚到这个入口，因此两边都不用各自判断。
+    if (isMirroredBase(baseId)) {
+      return await searchRagflowKnowledge(baseId, query)
+    }
+
     return await this.queryService.search(baseId, query)
   }
 
