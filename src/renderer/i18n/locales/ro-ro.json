@@ -1800,6 +1800,7 @@
   "knowledge.error.indexing_interrupted": "Indexarea a fost întreruptă deoarece aplicația s-a închis. Reindexează acest element pentru a finaliza.",
   "knowledge.error.missing_embedding_model": "Modelul de embedding utilizat de această bază de cunoștințe nu a fost găsit în timpul migrării. Reconstruiește baza de cunoștințe și alege un nou model de embedding.",
   "knowledge.error.missing_vector_store": "Depozitul vectorial al acestei baze de cunoștințe nu a putut fi citit în timpul migrării (lipsește, este gol sau blocat). Baza de cunoștințe a fost păstrată; reindexeaz-o pentru recuperare.",
+  "knowledge.error.ragflow_parse_failed": "RagFlow nu a putut procesa acest document. Remediați-l în RagFlow, apoi reîmprospătați.",
   "knowledge.groups.add": "Grup nou",
   "knowledge.groups.create_base_here": "Creează aici",
   "knowledge.groups.default": "Implicit",

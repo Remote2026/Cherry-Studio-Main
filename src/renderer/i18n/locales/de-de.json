@@ -1800,6 +1800,7 @@
   "knowledge.error.indexing_interrupted": "Die Indizierung wurde unterbrochen, weil die App geschlossen wurde. Indizieren Sie dieses Element erneut, um den Vorgang abzuschließen.",
   "knowledge.error.missing_embedding_model": "Das Embedding-Modell dieser Wissensdatenbank wurde während der Migration nicht gefunden. Erstellen Sie die Wissensdatenbank neu und wählen Sie ein neues Embedding-Modell.",
   "knowledge.error.missing_vector_store": "Der Vektorspeicher dieser Wissensdatenbank konnte während der Migration nicht gelesen werden (fehlend, leer oder gesperrt). Die Wissensdatenbank wurde beibehalten; indizieren Sie sie neu, um sie wiederherzustellen.",
+  "knowledge.error.ragflow_parse_failed": "RagFlow konnte dieses Dokument nicht verarbeiten. Beheben Sie das Problem in RagFlow und aktualisieren Sie dann.",
   "knowledge.groups.add": "Neue Gruppe",
   "knowledge.groups.create_base_here": "Hier erstellen",
   "knowledge.groups.default": "Standard",

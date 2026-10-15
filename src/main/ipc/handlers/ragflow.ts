@@ -1,4 +1,4 @@
-import { RagflowClientError, ragflowClient } from '@main/features/ragflow'
+import { RagflowClientError, ragflowClient, ragflowKnowledgeSyncService } from '@main/features/ragflow'
 import { IpcError } from '@shared/ipc/errors/IpcError'
 import { ragflowErrorCodes } from '@shared/ipc/errors/ragflow'
 import type { ragflowRequestSchemas } from '@shared/ipc/schemas/ragflow'
@@ -22,6 +22,8 @@ const run = async <T>(call: () => Promise<T>): Promise<T> => {
 
 export const ragflowHandlers: IpcHandlersFor<typeof ragflowRequestSchemas> = {
   'ragflow.test_connection': () => run(() => ragflowClient.testConnection()),
+  'ragflow.import_datasets': (input) => run(() => ragflowKnowledgeSyncService.importDatasets(input.datasetIds)),
+  'ragflow.sync': () => run(() => ragflowKnowledgeSyncService.sync()),
   'ragflow.list_datasets': (input) => run(() => ragflowClient.listDatasets(input)),
   'ragflow.list_documents': (input) => run(() => ragflowClient.listDocuments(input)),
   'ragflow.list_chunks': (input) => run(() => ragflowClient.listChunks(input)),

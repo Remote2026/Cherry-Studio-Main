@@ -1800,6 +1800,7 @@
   "knowledge.error.indexing_interrupted": "インデックス作成はアプリが終了したため中断されました。この項目を再インデックスして完了してください。",
   "knowledge.error.missing_embedding_model": "このナレッジベースで使用されていた埋め込みモデルは移行中に見つかりませんでした。ナレッジベースを再構築し、新しい埋め込みモデルを選択してください。",
   "knowledge.error.missing_vector_store": "このナレッジベースのベクターストアは移行中に読み取れませんでした（存在しない、空、またはロックされています）。ナレッジベースは保持されました。再インデックスを実行して復旧してください。",
+  "knowledge.error.ragflow_parse_failed": "RagFlow がこのドキュメントを解析できませんでした。RagFlow 側で修正してから更新してください。",
   "knowledge.groups.add": "新しいグループ",
   "knowledge.groups.create_base_here": "ここに作成",
   "knowledge.groups.default": "デフォルト",

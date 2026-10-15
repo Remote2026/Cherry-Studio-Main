@@ -1800,6 +1800,7 @@
   "knowledge.error.indexing_interrupted": "Uygulama kapandığı için dizine ekleme kesintiye uğradı. Tamamlamak için bu öğeyi yeniden dizine ekleyin.",
   "knowledge.error.missing_embedding_model": "Bu bilgi tabanında kullanılan gömme modeli taşıma sırasında bulunamadı. Bilgi tabanını yeniden oluşturup yeni bir gömme modeli seçin.",
   "knowledge.error.missing_vector_store": "Bu bilgi tabanının vektör deposu taşıma sırasında okunamadı (eksik, boş veya kilitli). Bilgi tabanı korundu; kurtarmak için yeniden dizine ekleyin.",
+  "knowledge.error.ragflow_parse_failed": "RagFlow bu belgeyi işleyemedi. Belgeyi RagFlow'da düzeltip yenileyin.",
   "knowledge.groups.add": "Yeni Grup",
   "knowledge.groups.create_base_here": "Burada oluştur",
   "knowledge.groups.default": "Varsayılan",

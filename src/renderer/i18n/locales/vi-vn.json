@@ -1800,6 +1800,7 @@
   "knowledge.error.indexing_interrupted": "Việc lập chỉ mục bị gián đoạn vì ứng dụng đã đóng. Hãy lập chỉ mục lại mục này để hoàn tất.",
   "knowledge.error.missing_embedding_model": "Mô hình embedding được sử dụng bởi cơ sở tri thức này không được tìm thấy trong quá trình di chuyển. Hãy xây dựng lại cơ sở tri thức và chọn một mô hình embedding mới.",
   "knowledge.error.missing_vector_store": "Kho kiến thức này không thể đọc được cửa hàng vector trong quá trình di chuyển (thiếu, trống hoặc bị khóa). Kho kiến thức đã được giữ lại; hãy lập chỉ mục lại để khôi phục.",
+  "knowledge.error.ragflow_parse_failed": "RagFlow không thể phân tích tài liệu này. Hãy sửa trong RagFlow rồi làm mới.",
   "knowledge.groups.add": "Nhóm Mới",
   "knowledge.groups.create_base_here": "Tạo ở đây",
   "knowledge.groups.default": "Mặc định",

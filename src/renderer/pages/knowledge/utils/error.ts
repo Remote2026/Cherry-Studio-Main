@@ -14,6 +14,7 @@ type KnowledgeErrorTranslator = (
     | 'knowledge.error.missing_vector_store'
     | 'knowledge.error.directory_not_migrated'
     | 'knowledge.error.indexing_interrupted'
+    | 'knowledge.error.ragflow_parse_failed'
 ) => string
 
 /** Localized copy for a known base error code. Exhaustive over `KnowledgeBaseErrorCode`. */
@@ -50,6 +51,8 @@ const translateKnowledgeItemErrorCode = (code: KnowledgeItemErrorCode, t: Knowle
       return t('knowledge.error.directory_not_migrated')
     case 'indexing_interrupted':
       return t('knowledge.error.indexing_interrupted')
+    case 'ragflow_parse_failed':
+      return t('knowledge.error.ragflow_parse_failed')
     default:
       return code satisfies never
   }

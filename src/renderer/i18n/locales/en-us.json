@@ -1800,6 +1800,7 @@
   "knowledge.error.indexing_interrupted": "Indexing was interrupted because the app closed. Reindex this item to finish.",
   "knowledge.error.missing_embedding_model": "The embedding model used by this knowledge base was not found during migration. Rebuild the knowledge base and choose a new embedding model.",
   "knowledge.error.missing_vector_store": "This knowledge base's vector store could not be read during migration (missing, empty, or locked). The knowledge base was kept; re-index it to recover.",
+  "knowledge.error.ragflow_parse_failed": "RagFlow could not parse this document. Fix it in RagFlow, then refresh.",
   "knowledge.groups.add": "New Group",
   "knowledge.groups.create_base_here": "Create here",
   "knowledge.groups.default": "Default",

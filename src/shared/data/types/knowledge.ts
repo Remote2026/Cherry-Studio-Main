@@ -141,11 +141,17 @@ export const KNOWLEDGE_BASE_ERROR_MISSING_VECTOR_STORE: KnowledgeBaseErrorCode =
  * code → i18n switch in `error.ts` stays exhaustive-checkable and the code ↔ translator-key
  * triple is tied together. Codes are localized by the UI; any other value is a free-form message.
  */
-export const KNOWLEDGE_ITEM_ERROR_CODES = ['directory_not_migrated', 'indexing_interrupted'] as const
+export const KNOWLEDGE_ITEM_ERROR_CODES = [
+  'directory_not_migrated',
+  'indexing_interrupted',
+  'ragflow_parse_failed'
+] as const
 export const KnowledgeItemErrorCodeSchema = z.enum(KNOWLEDGE_ITEM_ERROR_CODES)
 export type KnowledgeItemErrorCode = z.infer<typeof KnowledgeItemErrorCodeSchema>
 export const KNOWLEDGE_ITEM_ERROR_DIRECTORY_NOT_MIGRATED: KnowledgeItemErrorCode = 'directory_not_migrated'
 export const KNOWLEDGE_ITEM_ERROR_INDEXING_INTERRUPTED: KnowledgeItemErrorCode = 'indexing_interrupted'
+// 镜像条目的解析在 RagFlow 侧进行，失败原因只有那边知道，这里只记录它失败了。
+export const KNOWLEDGE_ITEM_ERROR_RAGFLOW_PARSE_FAILED: KnowledgeItemErrorCode = 'ragflow_parse_failed'
 
 export const KnowledgeChunkSizeSchema = z.number().int().positive()
 export const KnowledgeChunkOverlapSchema = z.number().int().min(0)

@@ -1800,6 +1800,7 @@
   "knowledge.error.indexing_interrupted": "L’indexation a été interrompue car l’application s’est fermée. Réindexez cet élément pour terminer.",
   "knowledge.error.missing_embedding_model": "Le modèle d'embedding utilisé par cette base de connaissances n'a pas été trouvé lors de la migration. Reconstruisez la base de connaissances et choisissez un nouveau modèle d'embedding.",
   "knowledge.error.missing_vector_store": "Le magasin de vecteurs de cette base de connaissances n'a pas pu être lu pendant la migration (manquant, vide ou verrouillé). La base de connaissances a été conservée ; ré-indexez-la pour la récupérer.",
+  "knowledge.error.ragflow_parse_failed": "RagFlow n'a pas pu analyser ce document. Corrigez-le dans RagFlow, puis actualisez.",
   "knowledge.groups.add": "Nouveau Groupe",
   "knowledge.groups.create_base_here": "Créez ici",
   "knowledge.groups.default": "Par défaut",

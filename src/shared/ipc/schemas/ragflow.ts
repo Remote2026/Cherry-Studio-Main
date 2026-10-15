@@ -71,6 +71,15 @@ const pageSizeSchema = z.number().int().min(1).max(100).optional()
 export const ragflowRequestSchemas = {
   'ragflow.test_connection': defineRoute({ input: z.void(), output: z.void() }),
 
+  /** 把选中的数据集聚合成本地镜像库；已导入的按远端 id 命中并刷新。 */
+  'ragflow.import_datasets': defineRoute({
+    input: z.object({ datasetIds: z.array(z.string().min(1)).min(1) }),
+    output: z.void()
+  }),
+
+  /** 刷新全部已导入的镜像库，并清掉远端已不存在的数据集与文档。 */
+  'ragflow.sync': defineRoute({ input: z.void(), output: z.void() }),
+
   'ragflow.list_datasets': defineRoute({
     input: z.object({
       name: z.string().trim().min(1).optional(),

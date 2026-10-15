@@ -1,9 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { testConnectionMock, listDatasetsMock, retrieveMock } = vi.hoisted(() => ({
+const { testConnectionMock, listDatasetsMock, retrieveMock, importDatasetsMock, syncMock } = vi.hoisted(() => ({
   testConnectionMock: vi.fn(),
   listDatasetsMock: vi.fn(),
-  retrieveMock: vi.fn()
+  retrieveMock: vi.fn(),
+  importDatasetsMock: vi.fn(),
+  syncMock: vi.fn()
 }))
 
 vi.mock('@main/features/ragflow', () => ({
@@ -23,7 +25,8 @@ vi.mock('@main/features/ragflow', () => ({
     listDocuments: vi.fn(),
     listChunks: vi.fn(),
     retrieve: retrieveMock
-  }
+  },
+  ragflowKnowledgeSyncService: { importDatasets: importDatasetsMock, sync: syncMock }
 }))
 
 import { RagflowClientError } from '@main/features/ragflow'
@@ -71,5 +74,20 @@ describe('ragflowHandlers', () => {
 
     expect(error).toBeInstanceOf(IpcError)
     expect(error).toMatchObject({ code: 'RAGFLOW_REQUEST_FAILED' })
+  })
+
+  it('imports the datasets the caller selected', async () => {
+    const input = { datasetIds: ['ds-1', 'ds-2'] }
+    await expect(ragflowHandlers['ragflow.import_datasets'](input, { senderId: 'w1' })).resolves.toBeUndefined()
+    expect(importDatasetsMock).toHaveBeenCalledWith(['ds-1', 'ds-2'])
+  })
+
+  it('reports an unreachable RagFlow when a sync fails', async () => {
+    syncMock.mockRejectedValueOnce(new RagflowClientError('UNAVAILABLE', 'RagFlow service is unavailable'))
+
+    const error = await ragflowHandlers['ragflow.sync'](undefined, { senderId: 'w1' }).catch((value) => value)
+
+    expect(error).toBeInstanceOf(IpcError)
+    expect(error).toMatchObject({ code: 'RAGFLOW_UNAVAILABLE' })
   })
 })

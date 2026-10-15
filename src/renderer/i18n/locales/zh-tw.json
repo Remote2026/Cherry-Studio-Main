@@ -1800,6 +1800,7 @@
   "knowledge.error.indexing_interrupted": "索引因應用程式關閉而中斷，請重新索引以完成。",
   "knowledge.error.missing_embedding_model": "移轉時未找到原知識庫使用的嵌入模型，請重建知識庫並選擇新的嵌入模型。",
   "knowledge.error.missing_vector_store": "移轉時無法讀取此知識庫的向量儲存庫（遺失、空白或遭鎖定）。知識庫已保留；請重新建立索引以復原。",
+  "knowledge.error.ragflow_parse_failed": "RagFlow 無法解析該文件。請在 RagFlow 中處理後再重新整理。",
   "knowledge.groups.add": "新增群組",
   "knowledge.groups.create_base_here": "在此群組新增",
   "knowledge.groups.default": "預設",
