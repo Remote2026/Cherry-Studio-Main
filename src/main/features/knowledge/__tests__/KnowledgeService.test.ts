@@ -60,7 +60,9 @@ const {
   getMaterialByRelativePathMock,
   readMaterialContentMock,
   probeKnowledgeFileMock,
-  probeKnowledgeSourcePathMock
+  probeKnowledgeSourcePathMock,
+  ragflowRetrieveMock,
+  ragflowListChunksMock
 } = vi.hoisted(() => ({
   cancelManyMock: vi.fn(),
   cancelMock: vi.fn(),
@@ -103,7 +105,9 @@ const {
   getMaterialByRelativePathMock: vi.fn(),
   readMaterialContentMock: vi.fn(),
   probeKnowledgeFileMock: vi.fn(),
-  probeKnowledgeSourcePathMock: vi.fn()
+  probeKnowledgeSourcePathMock: vi.fn(),
+  ragflowRetrieveMock: vi.fn(),
+  ragflowListChunksMock: vi.fn()
 }))
 
 vi.mock('@application', async () => {
@@ -213,6 +217,13 @@ vi.mock('../pathStorage', async () => {
     probeKnowledgeSourcePath: probeKnowledgeSourcePathMock
   }
 })
+
+// 只替掉 ragflow 的 HTTP 客户端，不替掉 RagflowKnowledgeQuery——分流判断必须由真实
+// 代码基于真实数据做出，否则这些用例就成了自己验自己。
+vi.mock('@main/features/ragflow/RagflowClient', () => ({
+  RagflowClientError: class RagflowClientError extends Error {},
+  ragflowClient: { retrieve: ragflowRetrieveMock, listChunks: ragflowListChunksMock }
+}))
 
 vi.mock('@main/utils/binaryResolver', () => ({
   getBinaryPath: async () =>
@@ -2926,6 +2937,92 @@ describe('KnowledgeService', () => {
     await expect(service.listItemChunks('kb-1', 'note-1')).rejects.toMatchObject({
       code: ErrorCode.INVALID_OPERATION,
       message: expect.stringContaining("Knowledge base 'kb-1' index store was closed during listItemChunks")
+    })
+  })
+
+  // 镜像库的内容全在 RagFlow，本地索引库里没有它的任何记录。这条边界只由
+  // KnowledgeService 的分流保证——分流一旦被拿掉，本地那条路会去开一个并不存在的索引库，
+  // 并为此调用 embedding 模型。所以这里钉住「哪个后端被碰到」，而不只是「返回了什么」。
+  describe('RagFlow mirror boundary', () => {
+    const MIRRORED_BASE: Partial<KnowledgeBase> = {
+      source: 'ragflow',
+      remoteId: 'ds-1',
+      dimensions: null,
+      embeddingModelId: null
+    }
+
+    const createMirroredItem = (): KnowledgeItemOf<'ragflow'> => ({
+      id: NOTE_ITEM_ID,
+      baseId: 'kb-1',
+      groupId: null,
+      remoteId: 'doc-1',
+      type: 'ragflow',
+      data: { source: 'guide.pdf' },
+      status: 'completed',
+      error: null,
+      createdAt: '2026-04-08T00:00:00.000Z',
+      updatedAt: '2026-04-08T00:00:00.000Z'
+    })
+
+    it('searches a mirrored base through RagFlow without touching the local store or embedding', async () => {
+      const service = new KnowledgeService()
+      knowledgeBaseGetByIdMock.mockReturnValue(createBase(MIRRORED_BASE))
+      ragflowRetrieveMock.mockResolvedValueOnce({ items: [], total: 0 })
+
+      await expect(service.search('kb-1', 'hello')).resolves.toEqual([])
+
+      expect(ragflowRetrieveMock).toHaveBeenCalledWith({ question: 'hello', datasetIds: ['ds-1'] })
+      expect(storeSearchMock).not.toHaveBeenCalled()
+      expect(getIndexStoreMock).not.toHaveBeenCalled()
+      expect(aiEmbedManyMock).not.toHaveBeenCalled()
+    })
+
+    it('still searches a local base through the local store, never through RagFlow', async () => {
+      const service = new KnowledgeService()
+      knowledgeBaseGetByIdMock.mockReturnValue(createBase())
+      storeSearchMock.mockResolvedValueOnce([])
+
+      await service.search('kb-1', 'hello')
+
+      expect(storeSearchMock).toHaveBeenCalled()
+      expect(ragflowRetrieveMock).not.toHaveBeenCalled()
+    })
+
+    it('lists a mirrored item chunks from RagFlow without opening the local index store', async () => {
+      const service = new KnowledgeService()
+      knowledgeBaseGetByIdMock.mockReturnValue(createBase(MIRRORED_BASE))
+      knowledgeItemGetByIdMock.mockReturnValue(createMirroredItem())
+      ragflowListChunksMock.mockResolvedValueOnce({ items: [], total: 0 })
+
+      await expect(service.listItemChunks('kb-1', NOTE_ITEM_ID)).resolves.toEqual([])
+
+      expect(ragflowListChunksMock).toHaveBeenCalledWith({
+        datasetId: 'ds-1',
+        documentId: 'doc-1',
+        page: 1,
+        pageSize: 100
+      })
+      expect(getIndexStoreMock).not.toHaveBeenCalled()
+    })
+
+    // 重建会先删向量再从源重建。镜像条目在本地没有源，放行就等于清空却无从重建，
+    // 所以这里断言的是"没排任何任务"，而不只是"抛了错"。
+    it('refuses to reindex a mirrored item instead of clearing vectors it cannot rebuild', async () => {
+      const service = new KnowledgeService()
+      const root = createMirroredItem()
+      knowledgeBaseGetByIdMock.mockReturnValue(createBase(MIRRORED_BASE))
+      knowledgeItemGetByIdMock.mockReturnValue(root)
+      knowledgeItemGetSubtreeItemsMock.mockImplementation(
+        (_baseId: string, _rootIds: string[], options: { includeRoots?: boolean } = {}) =>
+          options.includeRoots ? [root] : []
+      )
+
+      await expect(service.reindexItems('kb-1', [NOTE_ITEM_ID])).rejects.toMatchObject({
+        code: ErrorCode.VALIDATION_ERROR
+      })
+
+      expect(enqueueMock).not.toHaveBeenCalled()
+      expect(deleteStoreMock).not.toHaveBeenCalled()
     })
   })
 })
