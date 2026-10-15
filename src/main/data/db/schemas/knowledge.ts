@@ -1,8 +1,19 @@
 import { sql } from 'drizzle-orm'
-import { check, foreignKey, index, integer, real, sqliteTable, text, unique } from 'drizzle-orm/sqlite-core'
+import {
+  check,
+  foreignKey,
+  index,
+  integer,
+  real,
+  sqliteTable,
+  text,
+  unique,
+  uniqueIndex
+} from 'drizzle-orm/sqlite-core'
 
 import {
   type KnowledgeBaseErrorCode,
+  type KnowledgeBaseSource,
   type KnowledgeBaseStatus,
   type KnowledgeChunkStrategy,
   type KnowledgeItemData,
@@ -20,6 +31,9 @@ export const knowledgeBaseTable = sqliteTable(
   {
     id: uuidPrimaryKey(),
     name: text().notNull(),
+    source: text().$type<KnowledgeBaseSource>().notNull().default('local'),
+    /** 所镜像的 RagFlow 数据集 id，当且仅当 `source` 为 `ragflow` 时非空。 */
+    remoteId: text(),
     groupId: text().references(() => groupTable.id, { onDelete: 'set null' }),
     dimensions: integer(),
 
@@ -45,6 +59,11 @@ export const knowledgeBaseTable = sqliteTable(
   (t) => [
     check('knowledge_base_chunk_strategy_check', sql`${t.chunkStrategy} IN ('structured', 'delimiter')`),
     check('knowledge_base_status_check', sql`${t.status} IN ('completed', 'failed')`),
+    check('knowledge_base_source_check', sql`${t.source} IN ('local', 'ragflow')`),
+    // 把来源标记和它蕴含的 identity 绑在一起，防止两者漂移。
+    check('knowledge_base_source_remote_id_check', sql`(${t.source} = 'ragflow') = (${t.remoteId} IS NOT NULL)`),
+    // 一个数据集最多镜像成一个库；本地库的 remote_id 为 NULL，在 UNIQUE 下互不冲突。
+    uniqueIndex('knowledge_base_source_remote_id_unique').on(t.source, t.remoteId),
     check(
       'knowledge_base_status_error_check',
       sql`
@@ -87,6 +106,9 @@ export const knowledgeItemTable = sqliteTable(
 
     type: text().$type<KnowledgeItemType>().notNull(),
 
+    /** 所镜像的 RagFlow 文档 id，只在该条目是 `ragflow` 类型时非空。 */
+    remoteId: text(),
+
     data: text({ mode: 'json' }).$type<KnowledgeItemData>().notNull(),
 
     status: text().$type<KnowledgeItemStatus>().notNull(),
@@ -95,7 +117,7 @@ export const knowledgeItemTable = sqliteTable(
     ...createUpdateTimestamps
   },
   (t) => [
-    check('knowledge_item_type_check', sql`${t.type} IN ('file', 'url', 'note', 'directory')`),
+    check('knowledge_item_type_check', sql`${t.type} IN ('file', 'url', 'note', 'directory', 'ragflow')`),
     check(
       'knowledge_item_status_check',
       sql`${t.status} IN ('idle', 'preparing', 'processing', 'reading', 'embedding', 'completed', 'failed', 'deleting')`
@@ -105,8 +127,13 @@ export const knowledgeItemTable = sqliteTable(
       sql`
         (${t.type} IN ('file', 'url', 'note') AND ${t.status} IN ('idle', 'processing', 'reading', 'embedding', 'completed', 'failed', 'deleting'))
         OR (${t.type} = 'directory' AND ${t.status} IN ('idle', 'preparing', 'processing', 'completed', 'failed', 'deleting'))
+        OR (${t.type} = 'ragflow' AND ${t.status} IN ('idle', 'processing', 'completed', 'failed'))
       `
     ),
+    // 没有这个配对，镜像行就无法从检索命中的文档 id 反查回来。
+    check('knowledge_item_type_remote_id_check', sql`(${t.type} = 'ragflow') = (${t.remoteId} IS NOT NULL)`),
+    // 一个文档最多镜像成一条；本地条目的 remote_id 为 NULL，在 UNIQUE 下互不冲突。
+    uniqueIndex('knowledge_item_remote_id_unique').on(t.remoteId),
     check(
       'knowledge_item_status_error_check',
       sql`

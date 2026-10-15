@@ -52,6 +52,8 @@ function createItem(type: KnowledgeItem['type']): KnowledgeItem {
       return { ...base, type, data: { source: 'note', content: 'note' } }
     case 'directory':
       return { ...base, type, data: { source: '/docs' } }
+    case 'ragflow':
+      return { ...base, type, remoteId: 'doc-1', data: { source: 'guide.pdf' } }
   }
 }
 
@@ -151,6 +153,12 @@ describe('classifyKnowledgeItemReacquireSource', () => {
   it('treats note and url items as always rebuildable without touching disk', async () => {
     await expect(classifyKnowledgeItemReacquireSource(createItem('note'))).resolves.toBe('rebuildable')
     await expect(classifyKnowledgeItemReacquireSource(createItem('url'))).resolves.toBe('rebuildable')
+    expect(probeKnowledgeSourcePathMock).not.toHaveBeenCalled()
+  })
+
+  // 镜像条目的向量在 RagFlow 侧，本地重建只会清空却无从重建，必须判为 missing。
+  it('reports a mirrored item as missing so reindex can never be admitted', async () => {
+    await expect(classifyKnowledgeItemReacquireSource(createItem('ragflow'))).resolves.toBe('missing')
     expect(probeKnowledgeSourcePathMock).not.toHaveBeenCalled()
   })
 

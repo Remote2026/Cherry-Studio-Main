@@ -7,6 +7,8 @@ import { buildKnowledgeRagConfigPatch, createKnowledgeRagConfigFormValues } from
 const createKnowledgeBase = (overrides: Partial<KnowledgeBase> = {}): KnowledgeBase => ({
   id: '',
   name: '',
+  source: 'local',
+  remoteId: null,
   groupId: null,
   dimensions: 1536,
   embeddingModelId: 'openai::text-embedding-3-small',

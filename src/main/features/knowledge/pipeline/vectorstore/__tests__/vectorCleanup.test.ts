@@ -39,6 +39,8 @@ function createBase(): KnowledgeBase {
   return {
     id: 'kb-1',
     name: 'KB',
+    source: 'local',
+    remoteId: null,
     groupId: null,
     dimensions: 3,
     embeddingModelId: 'provider::embed',

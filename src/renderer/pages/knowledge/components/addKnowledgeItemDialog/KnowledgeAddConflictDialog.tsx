@@ -1,4 +1,4 @@
-import { FileText, Folder, Link2, type LucideIcon, StickyNote } from 'lucide-react'
+import { Cloud, FileText, Folder, Link2, type LucideIcon, StickyNote } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 import {
@@ -18,7 +18,9 @@ const CONFLICT_TYPE_ICON: Record<KnowledgeItemType, LucideIcon> = {
   file: FileText,
   note: StickyNote,
   directory: Folder,
-  url: Link2
+  url: Link2,
+  // 镜像条目不可能走添加流程，这里只为让映射对条目类型保持完备。
+  ragflow: Cloud
 }
 
 interface KnowledgeAddConflictDialogProps {

@@ -87,6 +87,8 @@ function createBase(id = 'kb-1'): KnowledgeBase {
   return {
     id,
     name: 'KB',
+    source: 'local',
+    remoteId: null,
     groupId: null,
     dimensions: 1024,
     embeddingModelId: 'ollama::nomic-embed-text',

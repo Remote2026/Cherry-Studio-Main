@@ -163,6 +163,8 @@ vi.mock('react-i18next', () => ({
 const createKnowledgeBase = (overrides: Partial<KnowledgeBase> = {}): KnowledgeBase => ({
   id: 'source-base',
   name: 'Legacy KB',
+  source: 'local',
+  remoteId: null,
   groupId: 'group-1',
   dimensions: null,
   embeddingModelId: null,

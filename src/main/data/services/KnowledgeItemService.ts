@@ -75,6 +75,7 @@ function rowToKnowledgeItem(row: KnowledgeItemRowLike): KnowledgeItem {
     id: row.id,
     baseId: row.baseId,
     groupId: row.groupId,
+    remoteId: row.remoteId,
     type: row.type,
     data,
     status: row.status,

@@ -55,7 +55,7 @@ export const KnowledgeRelativePathSchema = PosixRelativeFilePathSchema.refine((v
   return segments !== null && segments.length > 0
 }, 'must stay inside the knowledge base material root and point below it')
 
-export const KNOWLEDGE_ITEM_TYPES = ['file', 'url', 'note', 'directory'] as const
+export const KNOWLEDGE_ITEM_TYPES = ['file', 'url', 'note', 'directory', 'ragflow'] as const
 export const KnowledgeItemTypeSchema = z.enum(KNOWLEDGE_ITEM_TYPES)
 export type KnowledgeItemType = z.infer<typeof KnowledgeItemTypeSchema>
 
@@ -110,6 +110,15 @@ export const KNOWLEDGE_BASE_STATUSES = ['completed', 'failed'] as const
 export const KnowledgeBaseStatusSchema = z.enum(KNOWLEDGE_BASE_STATUSES)
 export type KnowledgeBaseStatus = z.infer<typeof KnowledgeBaseStatusSchema>
 export const DEFAULT_KNOWLEDGE_BASE_STATUS: KnowledgeBaseStatus = 'completed'
+
+/**
+ * 知识库内容实际存放的位置。`ragflow` 表示该库只是远程数据集的只读镜像：解析、
+ * 分块、embedding、检索全部在远端完成，本地没有索引库也没有 `raw/` 文件。
+ */
+export const KNOWLEDGE_BASE_SOURCES = ['local', 'ragflow'] as const
+export const KnowledgeBaseSourceSchema = z.enum(KNOWLEDGE_BASE_SOURCES)
+export type KnowledgeBaseSource = z.infer<typeof KnowledgeBaseSourceSchema>
+export const DEFAULT_KNOWLEDGE_BASE_SOURCE: KnowledgeBaseSource = 'local'
 // `missing_embedding_model`: the v1 embedding model could not be resolved to a migrated
 // user_model, so the base needs a new embedding model on restore.
 // `missing_vector_store`: the embedding model resolved, but the per-base legacy vector store
@@ -167,6 +176,9 @@ export const KNOWLEDGE_NOTE_CONTENT_MAX = 1_000_000
 export const KnowledgeBaseEntitySchema = z.strictObject({
   id: KnowledgeBaseIdSchema,
   name: z.string().trim().min(1),
+  source: KnowledgeBaseSourceSchema,
+  /** 所镜像的 RagFlow 数据集 id，当且仅当 `source` 为 `ragflow` 时非空。 */
+  remoteId: z.string().trim().min(1).nullable(),
   groupId: GroupIdSchema.nullable(),
   dimensions: z.number().int().positive().nullable(),
   embeddingModelId: z.string().trim().min(1).nullable(),
@@ -192,6 +204,15 @@ function refineKnowledgeBaseInvariants(
   value: Omit<z.infer<typeof KnowledgeBaseEntitySchema>, 'id' | 'createdAt' | 'updatedAt'>,
   ctx: z.RefinementCtx
 ): void {
+  // 镜像库靠远端 id 才能路由检索和刷新，本地库则不该声称有远端对应物。
+  if ((value.source === 'ragflow') !== (value.remoteId !== null)) {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['remoteId'],
+      message: 'A RagFlow knowledge base is exactly the one with a remote id'
+    })
+  }
+
   if (value.status === 'completed') {
     if (value.error !== null) {
       ctx.addIssue({
@@ -353,11 +374,16 @@ export type DirectoryItemData = z.infer<typeof DirectoryItemDataSchema>
 /**
  * JSON payload stored in `knowledge_item.data`.
  */
+/** 镜像的 RagFlow 文档数据，只存文档名——条目背后没有本地文件。 */
+export const RagflowItemDataSchema = KnowledgeItemSharedSchema
+export type RagflowItemData = z.infer<typeof RagflowItemDataSchema>
+
 export const KnowledgeItemDataSchema = z.union([
   FileItemDataSchema,
   UrlItemDataSchema,
   NoteItemDataSchema,
-  DirectoryItemDataSchema
+  DirectoryItemDataSchema,
+  RagflowItemDataSchema
 ])
 export type KnowledgeItemData = z.infer<typeof KnowledgeItemDataSchema>
 
@@ -368,6 +394,9 @@ export type KnowledgeItemData = z.infer<typeof KnowledgeItemDataSchema>
 const KnowledgeItemEntityBaseSchema = z.strictObject({
   id: KnowledgeItemIdSchema.describe('Stable knowledge item identifier.'),
   baseId: KnowledgeBaseIdSchema.describe('Owning knowledge base identifier.'),
+  /** 所镜像的 RagFlow 文档 id，只出现在 `ragflow` 条目上，故此处可选。 */
+  remoteId: z.string().trim().min(1).nullable().optional(),
+
   groupId: KnowledgeItemIdSchema.nullable()
     .optional()
     .describe('Parent container item identifier; null or undefined means the item is a root item.'),
@@ -514,13 +543,46 @@ const DirectoryKnowledgeItemSchema = z.discriminatedUnion(
 )
 
 /**
+ * 镜像条目不进本地工作流，状态由同步服务直接写入，故只有它能产生的这四种状态合法。
+ */
+const createMirroredKnowledgeItemEntitySchemas = <TData extends z.ZodType>(data: TData) =>
+  [
+    KnowledgeItemEntityBaseSchema.extend({
+      type: z.literal('ragflow'),
+      data,
+      ...IdleKnowledgeItemLifecycleSchema
+    }),
+    KnowledgeItemEntityBaseSchema.extend({
+      type: z.literal('ragflow'),
+      data,
+      ...ProcessingKnowledgeItemLifecycleSchema
+    }),
+    KnowledgeItemEntityBaseSchema.extend({
+      type: z.literal('ragflow'),
+      data,
+      ...CompletedKnowledgeItemLifecycleSchema
+    }),
+    KnowledgeItemEntityBaseSchema.extend({
+      type: z.literal('ragflow'),
+      data,
+      ...FailedKnowledgeItemLifecycleSchema
+    })
+  ] as const
+
+const RagflowKnowledgeItemSchema = z.discriminatedUnion(
+  'status',
+  createMirroredKnowledgeItemEntitySchemas(RagflowItemDataSchema)
+)
+
+/**
  * Knowledge item record stored in SQLite.
  */
 export const KnowledgeItemSchema = z.union([
   FileKnowledgeItemSchema,
   UrlKnowledgeItemSchema,
   NoteKnowledgeItemSchema,
-  DirectoryKnowledgeItemSchema
+  DirectoryKnowledgeItemSchema,
+  RagflowKnowledgeItemSchema
 ])
 export type KnowledgeItem = z.infer<typeof KnowledgeItemSchema>
 export type KnowledgeItemOf<T extends KnowledgeItemType> = Extract<KnowledgeItem, { type: T }>
@@ -874,6 +936,9 @@ export function getKnowledgeItemDisplayTitle(item: KnowledgeItemTitleSource): st
       const snapshotName = data.relativePath ? getKnowledgePathBasename(data.relativePath).replace(/\.md$/i, '') : ''
       return snapshotName || data.url || data.source || ''
     }
+    // 本地不会重命名镜像文档，RagFlow 给的名字就是名字。
+    case 'ragflow':
+      return data.source || ''
   }
 }
 
@@ -906,5 +971,8 @@ export function getKnowledgeItemConflictKey(item: KnowledgeItemTitleSource): str
     }
     case 'url':
       return (data.url || '').trim()
+    // 镜像条目不会走查重流程；这个分支只为让函数对条目联合类型保持完备。
+    case 'ragflow':
+      return (data.source || '').trim()
   }
 }

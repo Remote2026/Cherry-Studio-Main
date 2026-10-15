@@ -38,6 +38,8 @@ vi.mock('@renderer/ipc', () => ({
 const createKnowledgeBase = (overrides: Partial<KnowledgeBase> = {}): KnowledgeBase => ({
   id: '',
   name: '',
+  source: 'local',
+  remoteId: null,
   groupId: null,
   dimensions: 1536,
   embeddingModelId: null,

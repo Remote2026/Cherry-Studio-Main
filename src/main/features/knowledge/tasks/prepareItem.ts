@@ -7,7 +7,7 @@ import {
   type KnowledgeItemType
 } from '@shared/data/types/knowledge'
 
-import { type IndexableKnowledgeItem, isIndexableKnowledgeItem } from '../items'
+import { type IndexableKnowledgeItem, isContainerKnowledgeItem, isIndexableKnowledgeItem } from '../items'
 import { collectKnowledgeReservedRelativePaths } from '../pathStorage'
 import {
   chooseDirectoryPathPrefix,
@@ -35,6 +35,11 @@ export async function prepareKnowledgeItem({
 
   if (isIndexableKnowledgeItem(item)) {
     return [item]
+  }
+
+  // 只有容器需要展开：镜像条目之类的其它类型没有本地工序，宁可报错也不当目录处理。
+  if (!isContainerKnowledgeItem(item)) {
+    throw new Error(`Knowledge item ${item.id} of type '${item.type}' has no local prepare step`)
   }
 
   return await prepareDirectoryForRuntime(baseId, item, signal, onDirectoryCopyProgress)

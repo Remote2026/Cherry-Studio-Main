@@ -11,6 +11,8 @@ import {
   KNOWLEDGE_BASE_ERROR_MISSING_EMBEDDING_MODEL,
   KNOWLEDGE_ITEM_ERROR_DIRECTORY_NOT_MIGRATED,
   KNOWLEDGE_NOTE_CONTENT_MAX,
+  type DirectoryItemData,
+  type FileItemData,
   type KnowledgeItemData,
   type KnowledgeItemStatus,
   KnowledgeRelativePathSchema
@@ -482,10 +484,25 @@ const splitLegacyPathSegments = (value: string): string[] =>
  */
 const toSafePathSegment = (segment: string): string => sanitizeFilename(segment) || 'untitled'
 
+/**
+ * 目录展开后的 `file` 子条目。插入类型里 `data` 并不随 `type` 收窄，所以这里显式
+ * 声明成 file 形状，调用方才能直接读 file 专有的 `relativePath`。
+ */
+export type NewKnowledgeFileItem = NewKnowledgeItem & {
+  type: 'file'
+  data: FileItemData
+}
+
+/** 同上：展开出来的目录容器，`data` 收窄成目录形状。 */
+export type NewKnowledgeDirectoryItem = NewKnowledgeItem & {
+  type: 'directory'
+  data: DirectoryItemData
+}
+
 /** A v1 `directory` item expanded into a v2 container plus one `file` child per embedded file. */
 export interface ExpandedDirectoryItem {
-  container: NewKnowledgeItem
-  children: NewKnowledgeItem[]
+  container: NewKnowledgeDirectoryItem
+  children: NewKnowledgeFileItem[]
   /**
    * Each embedded file's v1 loader id → the synthesized v2 child item id, so the
    * vector migrator can re-attribute the folder's vectors to the right child.
@@ -580,7 +597,7 @@ export const expandLegacyDirectoryItem = (
   const createdAt = toTimestamp(item.created_at)
   const updatedAt = toTimestamp(item.updated_at)
   const containerId = uuidv7()
-  const children: NewKnowledgeItem[] = []
+  const children: NewKnowledgeFileItem[] = []
   const childLoaderRemap = new Map<string, string>()
   const usedChildPaths = new Set<string>()
   let unrelatedSourceChildCount = 0
@@ -647,7 +664,7 @@ export const expandLegacyDirectoryItem = (
     return null
   }
 
-  const container: NewKnowledgeItem = {
+  const container: NewKnowledgeDirectoryItem = {
     id: containerId,
     baseId,
     groupId: null,

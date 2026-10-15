@@ -11,6 +11,8 @@ function createBase(overrides: Partial<KnowledgeBase> = {}): KnowledgeBase {
   return {
     id: KNOWLEDGE_BASE_ID,
     name: 'KB',
+    source: 'local',
+    remoteId: null,
     groupId: null,
     dimensions: 1024,
     embeddingModelId: 'ollama::nomic-embed-text',

@@ -223,6 +223,8 @@ export function createBase(overrides: Partial<KnowledgeBase> = {}): KnowledgeBas
   return {
     id: 'kb-1',
     name: 'KB',
+    source: 'local',
+    remoteId: null,
     groupId: null,
     dimensions: 3,
     embeddingModelId: 'provider::embed',

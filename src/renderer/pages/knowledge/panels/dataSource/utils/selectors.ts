@@ -21,6 +21,8 @@ export const getItemStatus = (item: KnowledgeItem) => {
       return dataSourceTypeDisplayConfig.directory.getStatus(item.status)
     case 'url':
       return dataSourceTypeDisplayConfig.url.getStatus(item.status)
+    case 'ragflow':
+      return dataSourceTypeDisplayConfig.ragflow.getStatus(item.status)
   }
 }
 
@@ -34,6 +36,8 @@ export const getItemTitle = (item: KnowledgeItem): string => {
       return dataSourceTypeDisplayConfig.directory.getTitle(item, { language: '' })
     case 'url':
       return dataSourceTypeDisplayConfig.url.getTitle(item, { language: '' })
+    case 'ragflow':
+      return dataSourceTypeDisplayConfig.ragflow.getTitle(item, { language: '' })
   }
 }
 
@@ -75,6 +79,17 @@ export const toKnowledgeItemRowViewModel = (item: KnowledgeItem, language: strin
     }
     case 'url': {
       const config = dataSourceTypeDisplayConfig.url
+
+      return {
+        title: config.getTitle(item, { language }),
+        suffix: config.getSuffix(item, { language }),
+        metaParts: config.getMetaParts(item, { language }),
+        icon: config.icon,
+        status: config.getStatus(item.status)
+      }
+    }
+    case 'ragflow': {
+      const config = dataSourceTypeDisplayConfig.ragflow
 
       return {
         title: config.getTitle(item, { language }),

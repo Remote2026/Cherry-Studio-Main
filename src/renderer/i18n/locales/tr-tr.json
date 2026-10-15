@@ -1763,6 +1763,7 @@
   "knowledge.data_source.filters.directory": "Klasörler",
   "knowledge.data_source.filters.file": "Dosyalar",
   "knowledge.data_source.filters.note": "Notlar",
+  "knowledge.data_source.filters.ragflow": "RagFlow",
   "knowledge.data_source.filters.url": "URL'ler",
   "knowledge.data_source.list.end_reached": "Başka öğe yok",
   "knowledge.data_source.list.loading_more": "Daha fazlası yükleniyor…",

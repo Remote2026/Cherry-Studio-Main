@@ -1763,6 +1763,7 @@
   "knowledge.data_source.filters.directory": "Φάκελοι",
   "knowledge.data_source.filters.file": "Αρχεία",
   "knowledge.data_source.filters.note": "Σημειώσεις",
+  "knowledge.data_source.filters.ragflow": "RagFlow",
   "knowledge.data_source.filters.url": "Διευθύνσεις URL",
   "knowledge.data_source.list.end_reached": "Δεν υπάρχουν άλλα στοιχεία",
   "knowledge.data_source.list.loading_more": "Φόρτωση περισσότερων…",

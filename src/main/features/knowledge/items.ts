@@ -86,6 +86,10 @@ export async function classifyKnowledgeItemRestoreSource(
  * delete-and-re-add, and a raw parse error would surface as an opaque reindex failure instead.
  */
 export async function classifyKnowledgeItemReacquireSource(item: KnowledgeItem): Promise<KnowledgeItemSourceState> {
+  // 镜像条目在本地没有源可重新抓取，报 `missing` 才能挡住重建（否则会清空向量却无从重建）。
+  if (item.type === 'ragflow') {
+    return 'missing'
+  }
   if (item.type !== 'file' && item.type !== 'directory') {
     return 'rebuildable'
   }

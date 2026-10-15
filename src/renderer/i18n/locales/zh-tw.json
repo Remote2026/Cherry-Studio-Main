@@ -1763,6 +1763,7 @@
   "knowledge.data_source.filters.directory": "資料夾",
   "knowledge.data_source.filters.file": "檔案",
   "knowledge.data_source.filters.note": "筆記",
+  "knowledge.data_source.filters.ragflow": "RagFlow",
   "knowledge.data_source.filters.url": "連結",
   "knowledge.data_source.list.end_reached": "沒有更多了",
   "knowledge.data_source.list.loading_more": "載入更多…",

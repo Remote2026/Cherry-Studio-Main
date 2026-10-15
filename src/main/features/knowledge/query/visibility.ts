@@ -9,13 +9,15 @@ const logger = loggerService.withContext('Knowledge:Query')
 
 /**
  * Concept ID (relative path, OKF §2) of a search hit's source document, or
- * undefined when it has none: a directory (no material), or a url/note whose
- * snapshot relativePath was not captured yet. A completed leaf normally has one,
- * so this only swallows the rare unindexed-snapshot case rather than throwing
- * out of the whole search.
+ * undefined when it has none: a directory or a mirrored RagFlow item (neither has
+ * a local material), or a url/note whose snapshot relativePath was not captured
+ * yet. A completed leaf normally has one, so this only swallows the rare
+ * unindexed-snapshot case rather than throwing out of the whole search.
+ *
+ * 镜像条目与目录一样没有本地材料，故同样提前返回 undefined。
  */
 export function deriveConceptId(item: KnowledgeItem): string | undefined {
-  if (item.type === 'directory') {
+  if (item.type === 'directory' || item.type === 'ragflow') {
     return undefined
   }
   try {

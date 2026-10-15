@@ -8,6 +8,8 @@ import { buildKnowledgeBaseGroupSections } from '../group'
 const createKnowledgeBase = (overrides: Partial<KnowledgeBaseListItem> = {}): KnowledgeBaseListItem => ({
   id: '',
   name: '',
+  source: 'local',
+  remoteId: null,
   itemCount: 0,
   groupId: null,
   dimensions: 1536,

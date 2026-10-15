@@ -26,6 +26,7 @@ import {
   type CreateKnowledgeBaseDto,
   DEFAULT_KNOWLEDGE_BASE_CHUNK_OVERLAP,
   DEFAULT_KNOWLEDGE_BASE_CHUNK_SIZE,
+  DEFAULT_KNOWLEDGE_BASE_SOURCE,
   DEFAULT_KNOWLEDGE_BASE_STATUS,
   DEFAULT_KNOWLEDGE_CHUNK_SEPARATOR,
   DEFAULT_KNOWLEDGE_CHUNK_STRATEGY,
@@ -82,6 +83,7 @@ function rowToKnowledgeBase(row: KnowledgeBaseRow): KnowledgeBase {
   return KnowledgeBaseSchema.parse({
     ...clean,
     groupId: row.groupId,
+    remoteId: row.remoteId,
     dimensions: row.dimensions,
     embeddingModelId: row.embeddingModelId,
     error: row.error,
@@ -383,6 +385,9 @@ export class KnowledgeBaseService {
     }
     const createValues: Omit<typeof knowledgeBaseTable.$inferInsert, 'id' | 'createdAt' | 'updatedAt'> = {
       name: dto.name.trim(),
+      // 交互式创建永远建本地库；镜像库的 RAGFlow 来源与远端 id 由同步服务写入。
+      source: DEFAULT_KNOWLEDGE_BASE_SOURCE,
+      remoteId: null,
       groupId: dto.groupId ?? null,
       dimensions: usesEmbeddings ? (dto.dimensions ?? null) : null,
       embeddingModelId,

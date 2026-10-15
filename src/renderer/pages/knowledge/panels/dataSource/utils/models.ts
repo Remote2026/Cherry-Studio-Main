@@ -1,5 +1,5 @@
 import type { LucideIcon } from 'lucide-react'
-import { FileText, Folder, Link2, StickyNote } from 'lucide-react'
+import { Cloud, FileText, Folder, Link2, StickyNote } from 'lucide-react'
 
 import { formatRelativeTime } from '@renderer/utils/time'
 import {
@@ -53,12 +53,15 @@ type DataSourceTypeDisplayConfigMap = {
 const getRelativeMetaParts = (updatedAt: string, language: string, extraParts: Array<string | undefined> = []) =>
   [...extraParts, formatRelativeTime(updatedAt, language)].filter((part): part is string => Boolean(part))
 
-const getFileSuffix = (item: KnowledgeItemOf<'file'>) => {
-  const fallbackName = getKnowledgePathBasename(item.data.source)
-  const fallbackExt = fallbackName.includes('.') ? fallbackName.split('.').pop() : undefined
+/** 来源名的扩展名；没有扩展名时回退到 `fallback`。 */
+const getSourceSuffix = (source: string, fallback: string) => {
+  const name = getKnowledgePathBasename(source)
+  const ext = name.includes('.') ? name.split('.').pop() : undefined
 
-  return (fallbackExt || 'FILE').toLowerCase()
+  return (ext || fallback).toLowerCase()
 }
+
+const getFileSuffix = (item: KnowledgeItemOf<'file'>) => getSourceSuffix(item.data.source, 'FILE')
 
 export const resolveDataSourceStatusViewModel = (status: KnowledgeItemStatus): DataSourceStatusViewModel => {
   if (status === 'completed') {
@@ -165,6 +168,17 @@ export const dataSourceTypeDisplayConfig: DataSourceTypeDisplayConfigMap = {
     },
     getTitle: (item) => getKnowledgeItemDisplayTitle(item),
     getSuffix: () => '',
+    getMetaParts: (item, { language }) => getRelativeMetaParts(item.updatedAt, language),
+    getStatus: resolveDataSourceStatusViewModel
+  },
+  ragflow: {
+    filterLabelKey: 'knowledge.data_source.filters.ragflow',
+    icon: {
+      icon: Cloud,
+      iconClassName: 'text-sky-500'
+    },
+    getTitle: (item) => getKnowledgeItemDisplayTitle(item),
+    getSuffix: (item) => getSourceSuffix(item.data.source, ''),
     getMetaParts: (item, { language }) => getRelativeMetaParts(item.updatedAt, language),
     getStatus: resolveDataSourceStatusViewModel
   }

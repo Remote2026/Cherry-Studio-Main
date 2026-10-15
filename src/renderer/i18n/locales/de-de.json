@@ -1763,6 +1763,7 @@
   "knowledge.data_source.filters.directory": "Ordner",
   "knowledge.data_source.filters.file": "Dateien",
   "knowledge.data_source.filters.note": "Notizen",
+  "knowledge.data_source.filters.ragflow": "RagFlow",
   "knowledge.data_source.filters.url": "URLs",
   "knowledge.data_source.list.end_reached": "Keine weiteren Artikel",
   "knowledge.data_source.list.loading_more": "Weitere laden…",

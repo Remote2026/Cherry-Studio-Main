@@ -47,6 +47,8 @@ function createKnowledgeBase(overrides: Partial<KnowledgeBase> = {}): KnowledgeB
   return {
     id: '11111111-1111-4111-8111-111111111111',
     name: 'Knowledge Base',
+    source: 'local',
+    remoteId: null,
     groupId: null,
     dimensions: 1024,
     embeddingModelId: 'ollama::nomic-embed-text',
