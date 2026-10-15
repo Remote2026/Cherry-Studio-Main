@@ -9,6 +9,7 @@ import {
   useCreateKnowledgeBase,
   useDeleteKnowledgeBase,
   useEnableKnowledgeBaseEmbedding,
+  useImportRagflowDatasets,
   useKnowledgeBases,
   useRestoreKnowledgeBase,
   useUpdateKnowledgeBase
@@ -627,5 +628,40 @@ describe('useDeleteKnowledgeBase', () => {
     expect(loggerErrorSpy).toHaveBeenCalledWith('Failed to delete knowledge base', deleteError, {
       baseId: 'base-1'
     })
+  })
+})
+
+describe('useImportRagflowDatasets', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockUseInvalidateCache.mockReturnValue(mockInvalidateCache)
+    mockInvalidateCache.mockResolvedValue(undefined)
+  })
+
+  // 导入在 main 侧写库，但列表读的是 renderer 的缓存——不失效就永远看不到新库。
+  it('imports the selected datasets through runtime IPC and refreshes the list', async () => {
+    mockIpcRequest.mockResolvedValueOnce(undefined)
+    const { result } = renderHook(() => useImportRagflowDatasets())
+
+    await act(async () => {
+      await result.current.importDatasets(['ds-1', 'ds-2'])
+    })
+
+    expect(mockIpcRequest).toHaveBeenCalledWith('ragflow.import_datasets', { datasetIds: ['ds-1', 'ds-2'] })
+    expect(mockInvalidateCache).toHaveBeenCalledWith('/knowledge-bases')
+    expect(result.current.isImporting).toBe(false)
+  })
+
+  it('keeps import rejected when runtime IPC fails without refreshing the list', async () => {
+    const importError = new Error('RagFlow service is unavailable')
+    mockIpcRequest.mockRejectedValueOnce(importError)
+    const { result } = renderHook(() => useImportRagflowDatasets())
+
+    await act(async () => {
+      await expect(result.current.importDatasets(['ds-1'])).rejects.toBe(importError)
+    })
+
+    expect(mockInvalidateCache).not.toHaveBeenCalled()
+    expect(result.current.isImporting).toBe(false)
   })
 })

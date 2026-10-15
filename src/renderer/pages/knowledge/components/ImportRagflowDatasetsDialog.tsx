@@ -12,6 +12,7 @@ import {
   DialogHeader,
   DialogTitle
 } from '@cherrystudio/ui'
+import { useImportRagflowDatasets } from '@renderer/hooks/useKnowledgeBase'
 import { ipcApi } from '@renderer/ipc'
 import { openSettingsTab } from '@renderer/services/mainWindowNavigation'
 import { toast } from '@renderer/services/toast'
@@ -41,7 +42,7 @@ const ImportRagflowDatasetsDialog = ({
   const [isLoading, setIsLoading] = useState(false)
   const [loadError, setLoadError] = useState<unknown>(null)
   const [selectedIds, setSelectedIds] = useState<ReadonlySet<string>>(new Set())
-  const [isImporting, setIsImporting] = useState(false)
+  const { importDatasets, isImporting } = useImportRagflowDatasets()
 
   // 每次打开都重新拉一次：远端随时会有新数据集，缓存的列表没有意义。
   useEffect(() => {
@@ -80,14 +81,11 @@ const ImportRagflowDatasetsDialog = ({
   }
 
   const handleImport = async () => {
-    setIsImporting(true)
     try {
-      await ipcApi.request('ragflow.import_datasets', { datasetIds: [...selectedIds] })
+      await importDatasets([...selectedIds])
     } catch (error) {
       toast.error(formatErrorMessageWithPrefix(error, t('knowledge.ragflow.import_failed')))
       return
-    } finally {
-      setIsImporting(false)
     }
 
     onImported()

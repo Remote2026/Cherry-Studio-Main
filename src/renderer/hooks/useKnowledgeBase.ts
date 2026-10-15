@@ -357,3 +357,46 @@ export const useDeleteKnowledgeBase = () => {
     deleteError
   }
 }
+
+/**
+ * 导入 RagFlow 数据集为镜像库。
+ *
+ * 镜像行由主进程写入，而知识库列表读的是渲染进程的 SWR 缓存——主进程的变更通知
+ * 只是一个需要主动订阅的通道，知识库这套查询并没有订阅它。所以成功后必须显式失效
+ * `/knowledge-bases`，否则刚导入的库要等到下次重新挂载页面才出现。
+ */
+export const useImportRagflowDatasets = () => {
+  const [isImporting, setIsImporting] = useState(false)
+  const [importError, setImportError] = useState<Error | undefined>()
+  const invalidateCache = useInvalidateCache()
+
+  const importDatasets = useCallback(
+    async (datasetIds: string[]) => {
+      setImportError(undefined)
+      setIsImporting(true)
+
+      try {
+        await ipcApi.request('ragflow.import_datasets', { datasetIds })
+
+        try {
+          await invalidateCache('/knowledge-bases')
+        } catch (invalidateError) {
+          logger.error('Failed to refresh knowledge base list after RagFlow import', normalizeError(invalidateError), {
+            datasetIds
+          })
+        }
+
+        setIsImporting(false)
+      } catch (error) {
+        const normalizedError = normalizeError(error)
+        logger.error('Failed to import RagFlow datasets', normalizedError, { datasetIds })
+        setImportError(normalizedError)
+        setIsImporting(false)
+        throw normalizedError
+      }
+    },
+    [invalidateCache]
+  )
+
+  return { importDatasets, isImporting, importError }
+}
