@@ -69,6 +69,20 @@ describe('RagflowSettings', () => {
     vi.clearAllMocks()
   })
 
+  it('fills the fields from the stored settings once they load', async () => {
+    const view = render(<RagflowSettings />)
+
+    // 偏好存储是异步水合的：首帧只有默认值，存好的配置随后才到。
+    preferences.apiUrl = 'https://ragflow.example.com'
+    preferences.apiKey = 'stored-key'
+    view.rerender(<RagflowSettings />)
+
+    await waitFor(() => {
+      expect(screen.getByLabelText('settings.ragflow.fields.service_url')).toHaveValue('https://ragflow.example.com')
+      expect(screen.getByLabelText('settings.ragflow.fields.api_key')).toHaveValue('stored-key')
+    })
+  })
+
   it('does not save an invalid service address', async () => {
     render(<RagflowSettings />)
 
