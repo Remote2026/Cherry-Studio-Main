@@ -27,6 +27,8 @@ const SOURCE_KNOWLEDGE_BASE_ID = '33333333-3333-4333-8333-333333333333'
 const KNOWLEDGE_ITEM_ID = '0198f3f2-7d1a-7abc-8def-123456789abc'
 const CONTAINER_KNOWLEDGE_ITEM_ID = '0198f3f2-7d1c-7abc-8def-123456789abc'
 const GROUP_ID = '44444444-4444-4444-8444-444444444444'
+// 知识库实体带显式知识源标记：本地库恒为 source='local' + remoteId=null。
+const LOCAL_SOURCE_FIELDS = { source: 'local', remoteId: null } as const
 
 describe('Knowledge base schemas', () => {
   it('accepts valid numeric tuning fields', () => {
@@ -290,6 +292,7 @@ describe('Knowledge base schemas', () => {
     const result = KnowledgeBaseSchema.safeParse({
       id: KNOWLEDGE_BASE_ID,
       name: 'KB',
+      ...LOCAL_SOURCE_FIELDS,
       dimensions: 1024,
       embeddingModelId: 'embed-model',
       groupId: null,
@@ -309,6 +312,7 @@ describe('Knowledge base schemas', () => {
       KnowledgeBaseSchema.safeParse({
         id: KNOWLEDGE_BASE_ID,
         name: 'KB',
+        ...LOCAL_SOURCE_FIELDS,
         dimensions: 1024,
         embeddingModelId: 'embed-model',
         groupId: null,
@@ -329,6 +333,7 @@ describe('Knowledge base schemas', () => {
     const result = KnowledgeBaseSchema.safeParse({
       id: KNOWLEDGE_BASE_ID,
       name: 'KB',
+      ...LOCAL_SOURCE_FIELDS,
       dimensions: 1024,
       embeddingModelId: 'embed-model',
       groupId: null,
@@ -353,6 +358,7 @@ describe('Knowledge base schemas', () => {
     const result = KnowledgeBaseSchema.safeParse({
       id: KNOWLEDGE_BASE_ID,
       name: 'KB',
+      ...LOCAL_SOURCE_FIELDS,
       dimensions: 1024,
       embeddingModelId: 'embed-model',
       groupId: null,
@@ -374,6 +380,7 @@ describe('Knowledge base schemas', () => {
     const failedBase = {
       id: KNOWLEDGE_BASE_ID,
       name: 'KB',
+      ...LOCAL_SOURCE_FIELDS,
       embeddingModelId: null,
       groupId: null,
       status: 'failed',
@@ -404,6 +411,7 @@ describe('Knowledge base schemas', () => {
       KnowledgeBaseSchema.safeParse({
         id: KNOWLEDGE_BASE_ID,
         name: 'KB',
+        ...LOCAL_SOURCE_FIELDS,
         dimensions: 1024,
         embeddingModelId: 'embed-model',
         status: 'completed',
@@ -417,6 +425,7 @@ describe('Knowledge base schemas', () => {
       KnowledgeBaseSchema.safeParse({
         id: KNOWLEDGE_BASE_ID,
         name: 'KB',
+        ...LOCAL_SOURCE_FIELDS,
         dimensions: 1024,
         embeddingModelId: 'embed-model',
         status: 'completed',
@@ -559,6 +568,7 @@ it('accepts failed knowledge bases with a null embedding model id', () => {
   const result = KnowledgeBaseSchema.safeParse({
     id: SECOND_KNOWLEDGE_BASE_ID,
     name: 'KB nullable model',
+    ...LOCAL_SOURCE_FIELDS,
     dimensions: 1024,
     embeddingModelId: null,
     groupId: null,
@@ -579,6 +589,7 @@ it('rejects invalid knowledge base status error combinations', () => {
   const validBase = {
     id: KNOWLEDGE_BASE_ID,
     name: 'KB',
+    ...LOCAL_SOURCE_FIELDS,
     dimensions: 1024,
     groupId: null,
     chunkSize: DEFAULT_KNOWLEDGE_BASE_CHUNK_SIZE,
@@ -704,6 +715,7 @@ describe('isCompletedKnowledgeBase', () => {
   const completedBase = KnowledgeBaseSchema.parse({
     id: KNOWLEDGE_BASE_ID,
     name: 'KB',
+    ...LOCAL_SOURCE_FIELDS,
     groupId: null,
     dimensions: 768,
     embeddingModelId: 'embed-model',
@@ -757,6 +769,7 @@ describe('isCompletedVectorKnowledgeBase', () => {
   const vectorBase = KnowledgeBaseSchema.parse({
     id: KNOWLEDGE_BASE_ID,
     name: 'KB',
+    ...LOCAL_SOURCE_FIELDS,
     groupId: null,
     dimensions: 768,
     embeddingModelId: 'embed-model',
