@@ -3005,6 +3005,22 @@ describe('KnowledgeService', () => {
       expect(getIndexStoreMock).not.toHaveBeenCalled()
     })
 
+    // 写侧同样要挡住：放行就会跑本地分块/embedding/向量，而检索已整条分流给
+    // RagFlow，写进去的条目永远搜不到。断言"没排任何任务"而不只是"抛了错"。
+    it('refuses to add local items to a mirrored base', async () => {
+      const service = new KnowledgeService()
+      knowledgeBaseGetByIdMock.mockReturnValue(createBase(MIRRORED_BASE))
+
+      await expect(
+        service.addItems('kb-1', [{ type: 'note', data: { source: 'note-1', content: 'hello' } }])
+      ).rejects.toMatchObject({
+        code: ErrorCode.VALIDATION_ERROR,
+        message: expect.stringContaining('manage its documents in RagFlow')
+      })
+
+      expect(enqueueMock).not.toHaveBeenCalled()
+    })
+
     // 重建会先删向量再从源重建。镜像条目在本地没有源，放行就等于清空却无从重建，
     // 所以这里断言的是"没排任何任务"，而不只是"抛了错"。
     it('refuses to reindex a mirrored item instead of clearing vectors it cannot rebuild', async () => {

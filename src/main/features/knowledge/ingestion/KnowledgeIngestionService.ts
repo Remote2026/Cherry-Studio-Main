@@ -92,6 +92,15 @@ export class KnowledgeIngestionService implements KnowledgeItemScheduler {
   ): Promise<KnowledgeAddItemsResult> {
     const base = assertBaseCanRunRuntimeOperation(baseId, 'addItems')
 
+    // 镜像库只读是数据边界，不只是 UI 约定：本地一旦接收条目就会跑分块/embedding/
+    // 向量写入，而检索已整条分流给 RagFlow，写进来的条目永远搜不到。
+    if (base.source === 'ragflow') {
+      throw DataApiErrorFactory.validation(
+        { base: [`Knowledge base '${baseId}' mirrors a RagFlow dataset and holds no local content`] },
+        'Cannot add items to a RagFlow-backed knowledge base: manage its documents in RagFlow'
+      )
+    }
+
     if (inputs.length === 0) {
       return { status: 'added' }
     }

@@ -142,7 +142,9 @@ const PopupContainer: React.FC<Props> = ({ dialogTitle, source, sourceTitle, ope
   const [contentStats, setContentStats] = useState<ContentStats | null>(null)
   const [lastUsedBaseId, setLastUsedBaseId] = useState<string | null>(null)
   const [lastUsedLoaded, setLastUsedLoaded] = useState(false)
-  const { bases } = useKnowledgeBases()
+  const { bases: knowledgeBases } = useKnowledgeBases()
+  // 镜像库的内容由 RagFlow 管，本地不接收新条目，因此不作为保存目标出现。
+  const bases = useMemo(() => knowledgeBases.filter((base) => base.source !== 'ragflow'), [knowledgeBases])
   const { submit: submitKnowledgeItems } = useAddKnowledgeItems(selectedBaseId || '')
   const { t } = useTranslation()
 

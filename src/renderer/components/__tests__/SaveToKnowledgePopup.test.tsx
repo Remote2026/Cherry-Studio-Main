@@ -382,6 +382,30 @@ describe('SaveToKnowledgePopup', () => {
     await waitFor(() => expect(screen.getByRole('combobox', { name: 'knowledge-base' })).toHaveValue('base-1'))
   })
 
+  it('does not offer a RagFlow-backed base as a save target', async () => {
+    ;(useKnowledgeBases as unknown as ReturnType<typeof vi.fn<(...args: any[]) => any>>).mockReturnValue({
+      bases: [
+        { id: 'base-1', name: 'Mirrored Dataset', status: 'completed', source: 'ragflow' },
+        { id: 'base-2', name: 'Base Two', status: 'completed', source: 'local' }
+      ]
+    })
+    // 上一次保存用的就是镜像库：它不该被列出来，也不能继续当默认目标。
+    await mockPreferenceService.set('chat.save.knowledge.last_base_id', 'base-1')
+
+    const message = {
+      ...createMessageWithFiles([]),
+      parts: [{ type: 'text', text: 'All tools are working' }]
+    } as MessageExportView
+
+    render(<PopupHost />)
+    act(() => {
+      void SaveToKnowledgePopup.showForMessage(message)
+    })
+
+    await waitFor(() => expect(screen.getByRole('combobox', { name: 'knowledge-base' })).toHaveValue('base-2'))
+    expect(screen.queryByRole('option', { name: 'Mirrored Dataset' })).not.toBeInTheDocument()
+  })
+
   it('persists the selected base after a successful save', async () => {
     ;(useKnowledgeBases as unknown as ReturnType<typeof vi.fn<(...args: any[]) => any>>).mockReturnValue({
       bases: [
