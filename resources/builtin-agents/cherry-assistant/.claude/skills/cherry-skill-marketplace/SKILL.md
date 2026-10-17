@@ -1,6 +1,6 @@
 ---
 name: cherry-skill-marketplace
-description: 当用户明确要求搜索、安装、查看、卸载或创建 Skill，或内置 Skill / 工具出现能力缺口、无法完成当前任务时触发。通过 `mcp__skills__search_skills` 搜索并用 `mcp__skills__install_skill` 安装；已安装 Skill 的查看和删除通过产品清单导航到 Skills UI；没有合适结果时调用内置 `skill-creator` 创建并验证自定义 Skill，再继续原任务。普通任务仍先尝试内置能力。
+description: 当用户明确要求搜索、安装、查看、卸载或创建 Skill，或内置 Skill / 工具出现能力缺口、无法完成当前任务时触发。通过 `mcp__skills__search_skills` 搜索并用 `mcp__skills__install_skill` 安装；已安装 Skill 的查看和删除通过产品清单导航到 Skills UI；没有合适结果时说明当前未内置技能创建器，引导用户在 Skills UI 中导入或手动创建本地 Skill，再继续原任务。普通任务仍先尝试内置能力。
 ---
 
 # Cherry Skill Marketplace
@@ -25,7 +25,7 @@ description: 当用户明确要求搜索、安装、查看、卸载或创建 Ski
 
 这两个工具不提供列出或删除已安装 Skill 的能力。用户要查看、卸载或管理已安装 Skill 时，先用 `mcp__assistant__product_info` 读取 manifest 的 `routes` section，找到 Skills 设置路由，再调用 `mcp__assistant__navigate`；不得硬编码路由。让用户在 Skills UI 中完成管理，删除或卸载前再次确认目标名称。
 
-初始化、编写、验证和注册属于内置 `skill-creator` 的职责，市场 Skill 不重复实现。
+初始化、编写、验证和注册由用户自行完成，或通过 Skills UI 导入；市场 Skill 不重复实现，也不自行注册。
 
 ## 搜索与安装
 
@@ -41,17 +41,17 @@ description: 当用户明确要求搜索、安装、查看、卸载或创建 Ski
 - 先用一句话说明缺少的能力和已保留的中间成品。
 - 立即调用 `mcp__skills__search_skills`，用 `{ "query": "<缺失能力的聚焦关键词>" }` 只搜索恰好补足该能力的 Skill，不重新搜索已能完成的部分。
 - 只采用与输入、输出和运行环境都匹配且来源可信的结果；第三方 Skill 安装前仍需用户明确确认。
-- 没有合适结果、结果质量不足或用户不希望安装第三方代码时，调用内置 `skill-creator` 创建本地自定义 Skill，不把“未找到”作为结论。
+- 没有合适结果、结果质量不足或用户不希望安装第三方代码时，明确说明当前版本未内置技能创建器，并引导用户在 Skills UI 中导入或手动创建本地 Skill，不把“未找到”作为结论。
 
-## 移交 Skill Creator
+## 本地自定义 Skill
 
-没有合适结果时直接调用内置 `skill-creator`，不再要求额外授权。向它提供：
+当前版本不内置技能创建器，因此不要声称能自动创建、验证或注册 Skill，也不要自行编写 `SKILL.md` 或绕过 Skills UI 直接注册。没有合适结果时，向用户说明：
 
-- 用户的原始请求和精确的能力缺口。
-- 已完成的步骤、保留的中间产物及其路径。
-- 输入、期望输出和可检查的成功标准。
+- 缺失的能力和已保留的中间产物。
+- 可以通过 Skills UI 的导入入口添加本地 Skill。
+- 如果用户需要编写规格，提供最小说明（名称、触发场景、输入输出、成功标准），由用户自行创建并导入。
 
-让 `skill-creator` 独立负责初始化、编写、验证、注册和启用。不要自行编写 `SKILL.md`，也不要绕过它直接初始化或注册。它返回验证通过且已启用的 Skill 后，立即回到原始任务，使用新 Skill 完成并验证最终产物；注册成功不是任务完成。
+用户完成导入后，立即回到原始任务，使用新 Skill 完成并验证最终产物；注册成功不是任务完成。
 
 本地创建的 Skill 必须只补足当前能力缺口。Skill 无法提供用户独有的凭据、输入或物理访问；这些确实缺失时只询问最小阻塞信息，收到后继续。
 

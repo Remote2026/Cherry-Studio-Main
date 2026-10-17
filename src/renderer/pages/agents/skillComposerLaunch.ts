@@ -13,12 +13,13 @@ export function getSkillIntentGuardCacheKey(tabId: string): string {
 export function createSkillComposerLaunch(
   sessionId: string,
   skill: InstalledSkill,
-  draftText: string
+  draftText: string,
+  description = skill.description ?? undefined
 ): SkillComposerLaunch {
   const skillToken = agentSkillToComposerToken({
     name: skill.name,
     filename: skill.folderName,
-    description: skill.description ?? undefined
+    description
   })
   return {
     sessionId,

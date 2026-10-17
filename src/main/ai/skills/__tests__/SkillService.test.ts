@@ -1980,6 +1980,30 @@ describe('SkillService', () => {
       expect(installed?.isEnabled).toBe(true)
     })
 
+    it('installs find-skills and code-mate skills disabled until the user enables them', async () => {
+      const skillService = new SkillService()
+      await seedAgent()
+
+      for (const folderName of ['find-skills', 'code-mate-pi']) {
+        const source = path.join(path.dirname(sourcePath), folderName)
+        await fs.promises.mkdir(source, { recursive: true })
+        await fs.promises.writeFile(path.join(source, 'SKILL.md'), '# Builtin')
+        await skillService.syncBuiltinSkill(
+          folderName,
+          source,
+          APP_VERSION,
+          folderName.startsWith('code-mate-') ? 'code-cli:test' : null
+        )
+
+        const installed = await skillService.getByFolderName(folderName)
+        expect(installed?.isGlobalEnabled, folderName).toBe(false)
+      }
+
+      const agentSkills = (await skillService.list({ agentId: AGENT_ID })).map((skill) => skill.folderName)
+      expect(agentSkills).not.toContain('find-skills')
+      expect(agentSkills).not.toContain('code-mate-pi')
+    })
+
     it('records conditional builtin ownership and preserves it across updates', async () => {
       const skillService = new SkillService()
 

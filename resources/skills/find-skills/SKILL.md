@@ -146,7 +146,7 @@ If no relevant skills exist:
 
 1. Acknowledge that no existing skill was found
 2. Offer to help with the task directly using your general capabilities
-3. Offer to author a custom skill for the task (the skill-creator skill handles this)
+3. Offer to author a custom skill for the task, or point the user to the Skills UI import flow (this build does not bundle a skill creator)
 
 Example:
 

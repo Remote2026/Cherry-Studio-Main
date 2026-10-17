@@ -12,6 +12,7 @@ import {
   Switch
 } from '@cherrystudio/ui'
 import { ResourceCatalogSearchInput } from '@renderer/components/resourceCatalog/ResourceCatalogSearchInput'
+import { getSkillDescriptionForDisplay } from '@renderer/utils/skill'
 import type { InstalledSkill } from '@shared/data/types/agent'
 
 import { type CatalogItem, CatalogToggleGrid } from '../components/CatalogPicker'
@@ -84,7 +85,7 @@ export function SkillCatalogPicker({
         return {
           id: skill.id,
           name: skill.name,
-          description: mode === 'edit' ? skill.description : undefined,
+          description: mode === 'edit' ? getSkillDescriptionForDisplay(skill, t) : undefined,
           icon: mode === 'edit' ? <Sparkles size={13} strokeWidth={1.5} className="text-warning" /> : undefined
         }
       })

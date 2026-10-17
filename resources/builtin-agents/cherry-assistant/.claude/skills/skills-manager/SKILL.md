@@ -20,8 +20,7 @@ description: 搜索、安装和协调创建 Claude Code Agent Skills。当用户
 ## 创建 Skills
 
 1. 先确认现有 Skill 无法满足需求，并判断这是不是值得复用的流程；一次性任务直接完成，不强行创建 Skill。
-2. 检查可用 Skill 列表。`skill-creator` 可用时必须调用它，并完整遵循其需求澄清、初始化、编辑、验证和迭代流程；不要绕过它直接手写 `SKILL.md`。
-3. 只有 `skill-creator` 确实不可用时，才明确告诉用户正在降级，然后用 `npx skills init <skill-name>` 初始化，保持 `SKILL.md` 精简，并按需加入 `scripts/`、`references/`、`assets/`。
-4. 创建后至少验证 frontmatter、触发描述和一个真实用例；验证失败就修正后重跑。
+2. 当前版本未内置技能创建器。告知用户可以在 Skills UI 中导入或手动创建本地 Skill；如果运行时提供 `npx skills`，也可以用 `npx skills init <skill-name>` 初始化，保持 `SKILL.md` 精简，并按需加入 `scripts/`、`references/`、`assets/`。
+3. 创建后至少验证 frontmatter、触发描述和一个真实用例；验证失败就修正后重跑。
 
 **参考**: https://skills.sh/ | `npx skills find/add/init`

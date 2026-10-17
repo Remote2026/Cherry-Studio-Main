@@ -109,4 +109,15 @@ describe('packaged dependency contents', () => {
       expect(includesFile(file), file).toBe(true)
     }
   })
+
+  it('ships the offline Python runtime and wheelhouse for bundled document skills', () => {
+    const binaries = 'resources/binaries/win32-x64'
+    for (const file of [
+      'python/python.exe',
+      'python/Lib/site-packages/openpyxl/__init__.py',
+      'python-wheels/defusedxml-0.7.1-py2.py3-none-any.whl'
+    ]) {
+      expect(includesFile(`${binaries}/${file}`), file).toBe(true)
+    }
+  })
 })

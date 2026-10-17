@@ -33,6 +33,7 @@ import {
   parseSkillSourceUrl
 } from '@shared/utils/skillMarketplace'
 
+import { isBuiltinSkillEnabledByDefault } from './builtinSkillDefaults'
 import { assertSkillDirectoryWithinLimits, extractZip, resolveSkillDirectory, validateZipFile } from './skillArchive'
 import { SkillInstaller } from './SkillInstaller'
 import { createTempDir, normalizeFolderKey, safeRemoveDirectory, sanitizeFolderName } from './skillPaths'
@@ -1460,7 +1461,8 @@ export class SkillService {
           author: metadata.author ?? null,
           version: metadata.version ?? null,
           tags,
-          contentHash: sourceHash
+          contentHash: sourceHash,
+          isEnabled: isBuiltinSkillEnabledByDefault(destFolderName)
         })
       }
 

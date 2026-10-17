@@ -42,6 +42,7 @@ import type { AppRouter } from '@renderer/types/router'
 import { buildAgentFileWorkspaceKey, buildAgentSessionTopicId } from '@renderer/utils/agentSession'
 import { formatErrorMessage, formatErrorMessageWithPrefix } from '@renderer/utils/error'
 import { getDefaultRouteTitle } from '@renderer/utils/routeTitle'
+import { getSkillDescriptionForDisplay } from '@renderer/utils/skill'
 import { cn } from '@renderer/utils/style'
 import { isDataApiNotFoundError } from '@shared/data/api/errors'
 import type { ConcreteApiPaths } from '@shared/data/api/paths'
@@ -777,7 +778,12 @@ const AgentPage = () => {
         })
       ])
       setSkillComposerLaunch(
-        createSkillComposerLaunch(routeSessionId, skill, t('settings.skills.launchDraft', { name: skill.name }))
+        createSkillComposerLaunch(
+          routeSessionId,
+          skill,
+          t('settings.skills.launchDraft', { name: skill.name }),
+          getSkillDescriptionForDisplay(skill, t) || undefined
+        )
       )
     } catch (err) {
       setSkillComposerLaunch(null)

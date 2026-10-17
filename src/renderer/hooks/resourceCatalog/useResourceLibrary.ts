@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { useGroups } from '@renderer/hooks/useGroups'
 import type { AgentDetail, ResourceItem, ResourceType, SortKey } from '@renderer/types/resourceCatalog'
 import { getAgentAvatarFromConfiguration, getAgentDescriptionForDisplay } from '@renderer/utils/agent'
+import { getSkillDescriptionForDisplay } from '@renderer/utils/skill'
 import type { InstalledSkill } from '@shared/data/types/agent'
 import type { Assistant } from '@shared/data/types/assistant'
 import type { Prompt } from '@shared/data/types/prompt'
@@ -115,21 +116,24 @@ export function useResourceLibrary({
     [t]
   )
 
-  const buildSkillItem = useCallback((s: InstalledSkill): ResourceItem => {
-    return {
-      id: s.id,
-      type: 'skill',
-      name: s.name,
-      description: s.description ?? '',
-      // No emoji on InstalledSkill — fall back to the lightning glyph.
-      avatar: '⚡',
-      // Skill metadata tags from SKILL.md live on `sourceTags`; assistant
-      // organization in the resource library uses Group rows instead.
-      createdAt: s.createdAt,
-      updatedAt: s.updatedAt,
-      raw: s
-    }
-  }, [])
+  const buildSkillItem = useCallback(
+    (s: InstalledSkill): ResourceItem => {
+      return {
+        id: s.id,
+        type: 'skill',
+        name: s.name,
+        description: getSkillDescriptionForDisplay(s, t),
+        // No emoji on InstalledSkill — fall back to the lightning glyph.
+        avatar: '⚡',
+        // Skill metadata tags from SKILL.md live on `sourceTags`; assistant
+        // organization in the resource library uses Group rows instead.
+        createdAt: s.createdAt,
+        updatedAt: s.updatedAt,
+        raw: s
+      }
+    },
+    [t]
+  )
 
   const buildPromptItem = useCallback((p: Prompt): ResourceItem => {
     return {

@@ -203,6 +203,13 @@
       "when": 1792221847283,
       "tag": "0028_pi_runtime_cleanup",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "6",
+      "when": 1792228615927,
+      "tag": "0029_default_disabled_skills",
+      "breakpoints": true
     }
   ],
   "version": "7"

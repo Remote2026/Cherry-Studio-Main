@@ -24,6 +24,7 @@ import { useSkillMutationsById } from '@renderer/hooks/resourceCatalog'
 import { useSkillLauncher } from '@renderer/hooks/useSkillLauncher'
 import { ipcApi } from '@renderer/ipc'
 import { toast } from '@renderer/services/toast'
+import { getSkillDescriptionForDisplay } from '@renderer/utils/skill'
 import { IpcError } from '@shared/ipc/errors/IpcError'
 import { skillErrorCodes } from '@shared/ipc/errors/skill'
 import type { SkillRemoteUpdateCheck } from '@shared/types/skill'
@@ -203,7 +204,7 @@ export function SkillDetails({ skillId }: { skillId: string }) {
             />
           </div>
           <SettingDescription className="mt-1 line-clamp-2 text-sm leading-5">
-            {skill.description || t('library.skill_detail.no_description')}
+            {getSkillDescriptionForDisplay(skill, t) || t('library.skill_detail.no_description')}
           </SettingDescription>
         </div>
         <div

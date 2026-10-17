@@ -27,8 +27,30 @@ const logger = loggerService.withContext('builtinSkills')
  * the installed version — the skill files are overwritten only when the app
  * ships a newer version.
  */
+
+/** Bundled skills removed from the app; their previously installed copies are deleted on launch. */
+const RETIRED_BUILTIN_SKILLS = ['skill-creator']
+
+async function removeRetiredBuiltinSkills(): Promise<void> {
+  for (const folderName of RETIRED_BUILTIN_SKILLS) {
+    try {
+      const skill = await skillService.getByFolderName(folderName)
+      if (skill?.source !== 'builtin') continue
+      await skillService.uninstall(skill.id)
+      logger.info('Retired built-in skill removed', { folderName })
+    } catch (error) {
+      logger.warn('Failed to remove retired built-in skill', {
+        folderName,
+        error: error instanceof Error ? error.message : String(error)
+      })
+    }
+  }
+}
+
 // TODO: v2-backup
 export async function installBuiltinSkills(): Promise<void> {
+  await removeRetiredBuiltinSkills()
+
   const resourceSkillsPath = toAsarUnpackedPath(application.getPath('feature.agents.skills.builtin'))
   const appVersion = app.getVersion()
 

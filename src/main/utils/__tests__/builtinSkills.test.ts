@@ -24,12 +24,18 @@ vi.mock('../asar', () => ({
   toAsarUnpackedPath: vi.fn((filePath: string) => filePath)
 }))
 
-const { mockSyncBuiltinSkill } = vi.hoisted(() => ({
-  mockSyncBuiltinSkill: vi.fn()
+const { mockSyncBuiltinSkill, mockGetByFolderName, mockUninstall } = vi.hoisted(() => ({
+  mockSyncBuiltinSkill: vi.fn(),
+  mockGetByFolderName: vi.fn(),
+  mockUninstall: vi.fn()
 }))
 
 vi.mock('@main/ai/skills/SkillService', () => ({
-  skillService: { syncBuiltinSkill: mockSyncBuiltinSkill }
+  skillService: {
+    syncBuiltinSkill: mockSyncBuiltinSkill,
+    getByFolderName: mockGetByFolderName,
+    uninstall: mockUninstall
+  }
 }))
 
 // Matches the stub in tests/main.setup.ts → mockApplicationFactory().getPath
@@ -37,6 +43,8 @@ const resourceSkillsPath = '/mock/feature.agents.skills.builtin'
 beforeEach(() => {
   vi.clearAllMocks()
   mockSyncBuiltinSkill.mockResolvedValue(false)
+  mockGetByFolderName.mockReturnValue(null)
+  mockUninstall.mockResolvedValue(undefined)
 })
 
 afterEach(() => {
@@ -44,6 +52,25 @@ afterEach(() => {
 })
 
 describe('installBuiltinSkills', () => {
+  it('removes a retired built-in skill even when the bundled resources are absent', async () => {
+    mockGetByFolderName.mockReturnValue({ id: 'skill-1', source: 'builtin', folderName: 'skill-creator' })
+    vi.mocked(fs.access).mockRejectedValueOnce(new Error('ENOENT'))
+
+    await installBuiltinSkills()
+
+    expect(mockGetByFolderName).toHaveBeenCalledWith('skill-creator')
+    expect(mockUninstall).toHaveBeenCalledWith('skill-1')
+  })
+
+  it('leaves a user-owned skill that reuses a retired folder name untouched', async () => {
+    mockGetByFolderName.mockReturnValue({ id: 'skill-1', source: 'local', folderName: 'skill-creator' })
+    vi.mocked(fs.access).mockRejectedValueOnce(new Error('ENOENT'))
+
+    await installBuiltinSkills()
+
+    expect(mockUninstall).not.toHaveBeenCalled()
+  })
+
   it('should return early when resources/skills does not exist', async () => {
     vi.mocked(fs.access).mockRejectedValueOnce(new Error('ENOENT'))
 

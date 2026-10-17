@@ -209,6 +209,11 @@ exports.default = async function (context) {
   })
   // Fail the build rather than ship a half-empty resources/binaries/<platform>.
   require('../download-binaries').verifyBundledBinaries(platform, arch)
+  // Build the offline Python runtime when the packaging machine has network access;
+  // a pre-seeded resources/binaries/<platform> makes this a no-op. Then fail closed
+  // so a package never ships without the document-skill dependencies.
+  execSync(`node "${path.join(__dirname, '../prepare-python-runtime.js')}"`, { stdio: 'inherit' })
+  execSync(`node "${path.join(__dirname, '../prepare-python-runtime.js')}" --check`, { stdio: 'inherit' })
 
   const excludePackages = async (packagesToExclude) => {
     // 从项目根目录的 electron-builder.yml 读取 files 配置，避免多次覆盖配置导致出错

@@ -35,6 +35,7 @@ import {
   mergeBinaryExecutionEnv,
   mergePathSuffixes
 } from '@main/utils/binaryEnv'
+import { applyBundledPythonExecution } from '@main/utils/bundledPython'
 import { autoDiscoverGitBash, validateGitBashPath } from '@main/utils/commandResolver'
 import { getPathFromEnvironment, getShellEnv } from '@main/utils/shellEnv'
 import type { AgentSessionCompactionAnchorData, AgentSessionCompactionTrigger } from '@shared/ai/agentSessionCompaction'
@@ -145,10 +146,10 @@ function mergePiBashExecutionEnv(env: NodeJS.ProcessEnv): Record<string, string>
     // redirect that installation to Cherry's isolated data directory or expose Cherry's shims
     // under an incompatible MISE_* contract. Bundled standalone binaries remain a safe fallback,
     // but stay behind the caller's PATH so they cannot replace the user's own tool versions.
-    return mergePathSuffixes(definedEnv, standaloneBinaryDirs, [managedShimsDir])
+    return applyBundledPythonExecution(mergePathSuffixes(definedEnv, standaloneBinaryDirs, [managedShimsDir]))
   }
 
-  return mergeBinaryExecutionEnv(definedEnv, standaloneBinaryDirs)
+  return applyBundledPythonExecution(mergeBinaryExecutionEnv(definedEnv, standaloneBinaryDirs))
 }
 
 interface PendingSteer {

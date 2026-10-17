@@ -137,7 +137,7 @@ describe('Cherry Assistant guide', () => {
     expect(prompt).not.toContain('mcp__assistant-files__move_to_trash')
   })
 
-  it('searches skills before declaring a capability unsupported and delegates creation to skill-creator', () => {
+  it('searches skills before declaring a capability unsupported and routes creation through the Skills UI', () => {
     const agent = JSON.parse(fs.readFileSync(AGENT_TEMPLATE_PATH, 'utf-8')) as {
       instructions: Record<'en-US' | 'zh-CN', string>
     }
@@ -146,11 +146,10 @@ describe('Cherry Assistant guide', () => {
 
     expect(Object.values(agent.instructions).join('\n')).not.toContain('find-skills')
     expect(skillsManager).toContain('`find-skills` 可用时先调用它')
-    expect(skillsManager).toContain('`skill-creator` 可用时必须调用它')
-    expect(skillsManager).toContain('不要绕过它直接手写 `SKILL.md`')
+    expect(skillsManager).toContain('未内置技能创建器')
     expect(marketplace).toContain('`mcp__skills__search_skills`')
     expect(marketplace).toContain('`mcp__skills__install_skill`')
-    expect(marketplace).toContain('调用内置 `skill-creator`')
+    expect(marketplace).toContain('未内置技能创建器')
     expect(marketplace).toContain('不要自行编写 `SKILL.md`')
     expect(marketplace).toContain('回到原始任务')
   })

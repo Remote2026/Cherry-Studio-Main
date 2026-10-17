@@ -32,7 +32,7 @@ async function fetchMarketplaceJson(url: string): Promise<unknown> {
  * `SkillService.install`). Search reuses the shared `normalizeClaudePlugins` so the install source
  * is built from the real repo directory, never the display name — the model passes that opaque
  * string straight back to install_skill, so it can't pick the wrong skill. Authoring is intentionally
- * NOT here — the skill-creator skill writes files into `$CHERRY_STUDIO_SKILLS_DIR` and
+ * NOT here — skills authored by an agent write files into `$CHERRY_STUDIO_SKILLS_DIR` and
  * `SkillService.reconcileSkills` catalogs them. Install goes through the main process so a weak model
  * only needs one tool call, not a correct multi-step shell sequence.
  */

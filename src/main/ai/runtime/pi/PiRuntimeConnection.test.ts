@@ -192,6 +192,9 @@ vi.mock('./piSdk', async (importOriginal) => ({
   loadPiAi: async () => ({ InMemoryCredentialStore: class {} }),
   loadPiApiStreamSimple: mocks.loadPiApiStreamSimple
 }))
+vi.mock('@main/utils/bundledPython', () => ({
+  applyBundledPythonExecution: (env: Record<string, string>) => ({ ...env, BUNDLED_PYTHON: '1' })
+}))
 vi.mock('@main/utils/rtk', () => ({ rtkRewrite: vi.fn().mockResolvedValue(null) }))
 vi.mock('@main/utils/shellEnv', () => ({
   getShellEnv: mocks.getShellEnv,
@@ -700,6 +703,7 @@ describe('PiRuntimeConnection', () => {
     ])
     expect(result.env).toMatchObject({
       PI_ONLY: 'preserved',
+      BUNDLED_PYTHON: '1',
       MISE_DATA_DIR: '/cherry/Toolchain/mise',
       MISE_SHIMS_DIR: path.join('/cherry/Toolchain/mise', 'shims')
     })
@@ -735,6 +739,7 @@ describe('PiRuntimeConnection', () => {
       '/cherry/bin'
     ])
     expect(result.env).toMatchObject({
+      BUNDLED_PYTHON: '1',
       MISE_DATA_DIR: '/home/user/.local/share/mise',
       MISE_SHIMS_DIR: '/home/user/.local/share/mise/shims'
     })

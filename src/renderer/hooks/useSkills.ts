@@ -1,10 +1,13 @@
+import type { TFunction } from 'i18next'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import useSWR, { useSWRConfig } from 'swr'
 
 import { useDataChange, useInvalidateCache, useQuery } from '@data/hooks/useDataApi'
 import { loggerService } from '@logger'
 import { ipcApi } from '@renderer/ipc'
 import { toast } from '@renderer/services/toast'
+import { getSkillDescriptionForDisplay } from '@renderer/utils/skill'
 import { searchSkills } from '@renderer/utils/skillSearch'
 import type {
   InstalledSkill,
@@ -147,7 +150,11 @@ export function useInstalledSkills(agentId?: string, options: { enabled?: boolea
   }
 }
 
-function buildAvailableSkills(globalSkills: readonly InstalledSkill[], localSkills: readonly LocalSkill[]) {
+function buildAvailableSkills(
+  globalSkills: readonly InstalledSkill[],
+  localSkills: readonly LocalSkill[],
+  t: TFunction
+) {
   const seen = new Set<string>()
   const available: LocalSkill[] = []
 
@@ -156,7 +163,7 @@ function buildAvailableSkills(globalSkills: readonly InstalledSkill[], localSkil
     seen.add(skill.folderName)
     available.push({
       name: skill.name,
-      description: skill.description ?? undefined,
+      description: getSkillDescriptionForDisplay(skill, t) || undefined,
       filename: skill.folderName
     })
   }
@@ -166,7 +173,7 @@ function buildAvailableSkills(globalSkills: readonly InstalledSkill[], localSkil
     seen.add(skill.filename)
     available.push({
       name: skill.name,
-      description: skill.description,
+      description: getSkillDescriptionForDisplay(skill, t) || undefined,
       filename: skill.filename
     })
   }
@@ -175,6 +182,7 @@ function buildAvailableSkills(globalSkills: readonly InstalledSkill[], localSkil
 }
 
 export function useAvailableSkills(agentId?: string, workdir?: string, options: { enabled?: boolean } = {}) {
+  const { t } = useTranslation()
   const enabled = options.enabled ?? true
   const installed = useInstalledSkills(agentId, { enabled })
   const [localSkills, setLocalSkills] = useState<LocalSkill[]>([])
@@ -242,7 +250,10 @@ export function useAvailableSkills(agentId?: string, workdir?: string, options: 
     await Promise.all([Promise.resolve(refreshInstalledSkills()), refreshLocalSkills()])
   }, [refreshInstalledSkills, refreshLocalSkills])
 
-  const skills = useMemo(() => buildAvailableSkills(installed.skills, localSkills), [installed.skills, localSkills])
+  const skills = useMemo(
+    () => buildAvailableSkills(installed.skills, localSkills, t),
+    [installed.skills, localSkills, t]
+  )
   const isInitialLocalLoad = enabled && Boolean(workdir) && loadedLocalSkillsWorkdir !== workdir
 
   return {

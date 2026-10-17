@@ -271,30 +271,6 @@ describe('useResourceCatalogController', () => {
     expect(onLaunchSkill).toHaveBeenCalledExactlyOnceWith(skill.raw)
   })
 
-  it('launches only the exact builtin skill-creator from the unfiltered catalog', () => {
-    const localImpostor = createSkillResource('local-creator', 'skill-creator', 'local')
-    const builtinCreator = createSkillResource('builtin-creator', 'skill-creator', 'builtin')
-    controllerMocks.resourceLibraryState.allResources = [localImpostor, builtinCreator]
-    controllerMocks.resourceLibraryState.resources = []
-    const onLaunchSkill = vi.fn().mockResolvedValue(undefined)
-    const { result } = renderHook(() => useResourceCatalogController('skill', { onLaunchSkill }))
-
-    act(() => result.current.gridProps.onCreateSkillWithAgent?.())
-
-    expect(onLaunchSkill).toHaveBeenCalledExactlyOnceWith(builtinCreator.raw)
-  })
-
-  it('does not create a session when the builtin skill-creator is unavailable', () => {
-    controllerMocks.resourceLibraryState.allResources = [createSkillResource('local-creator', 'skill-creator', 'local')]
-    const onLaunchSkill = vi.fn().mockResolvedValue(undefined)
-    const { result } = renderHook(() => useResourceCatalogController('skill', { onLaunchSkill }))
-
-    act(() => result.current.gridProps.onCreateSkillWithAgent?.())
-
-    expect(onLaunchSkill).not.toHaveBeenCalled()
-    expect(toast.error).toHaveBeenCalledWith('settings.skills.creatorUnavailable')
-  })
-
   it('reports assistant export failures without throwing', async () => {
     controllerMocks.saveFile.mockRejectedValueOnce(new Error('export failed'))
     const { result } = renderHook(() => useResourceCatalogController('assistant'))

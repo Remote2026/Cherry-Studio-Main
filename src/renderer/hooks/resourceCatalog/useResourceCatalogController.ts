@@ -141,18 +141,6 @@ export function useResourceCatalogController(
     [onLaunchSkill]
   )
 
-  const handleCreateSkillWithAgent = useCallback(() => {
-    const creator = allResources.find(
-      (resource) =>
-        resource.type === 'skill' && resource.raw.source === 'builtin' && resource.raw.folderName === 'skill-creator'
-    )
-    if (!creator || creator.type !== 'skill') {
-      toast.error(t('settings.skills.creatorUnavailable'))
-      return
-    }
-    void onLaunchSkill?.(creator.raw)
-  }, [allResources, onLaunchSkill, t])
-
   const handleDuplicate = useCallback(
     async (resource: ResourceItem) => {
       if (resource.type === 'assistant') {
@@ -317,7 +305,6 @@ export function useResourceCatalogController(
       onOpenAssistantLibrary: isAssistantLibrary ? () => setAssistantLibraryOpen(true) : undefined,
       onOpenSkillMarketplace: () => setSkillMarketplaceOpen(true),
       onOpenSystemSkills: () => setSystemSkillOpen(true),
-      onCreateSkillWithAgent: onLaunchSkill ? handleCreateSkillWithAgent : undefined,
       onLaunchSkill: onLaunchSkill ? handleLaunchSkill : undefined,
       groups: scopedGroups,
       activeGroupId,
