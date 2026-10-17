@@ -58,7 +58,7 @@ describe('CherryAssistantSeeder', () => {
 
     const [agent] = builtinAgents(dbh.db)
     expect(agent).toMatchObject({
-      type: 'claude-code',
+      type: 'pi',
       name: 'Cherry Assistant',
       description: '',
       instructions: '',

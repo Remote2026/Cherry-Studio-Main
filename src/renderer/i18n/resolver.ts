@@ -1,13 +1,3 @@
-import 'dayjs/locale/de'
-import 'dayjs/locale/el'
-import 'dayjs/locale/es'
-import 'dayjs/locale/fr'
-import 'dayjs/locale/ja'
-import 'dayjs/locale/pt'
-import 'dayjs/locale/ro'
-import 'dayjs/locale/ru'
-import 'dayjs/locale/tr'
-import 'dayjs/locale/vi'
 import 'dayjs/locale/zh-cn'
 import 'dayjs/locale/zh-tw'
 import dayjs from 'dayjs'
@@ -28,18 +18,8 @@ const logger = loggerService.withContext('I18N')
 const localeLoaders = {
   'en-US': () => import('./locales/en-us.json'),
   'zh-CN': () => import('./locales/zh-cn.json'),
-  'zh-TW': () => import('./locales/zh-tw.json'),
-  'de-DE': () => import('./locales/de-de.json'),
-  'el-GR': () => import('./locales/el-gr.json'),
-  'es-ES': () => import('./locales/es-es.json'),
-  'fr-FR': () => import('./locales/fr-fr.json'),
-  'ja-JP': () => import('./locales/ja-jp.json'),
-  'pt-PT': () => import('./locales/pt-pt.json'),
-  'ro-RO': () => import('./locales/ro-ro.json'),
-  'ru-RU': () => import('./locales/ru-ru.json'),
-  'vi-VN': () => import('./locales/vi-vn.json'),
-  'tr-TR': () => import('./locales/tr-tr.json')
-} satisfies Record<LanguageVarious, () => Promise<unknown>>
+  'zh-TW': () => import('./locales/zh-tw.json')
+} satisfies Partial<Record<LanguageVarious, () => Promise<unknown>>>
 
 export const getLanguage = async () => {
   return (await preferenceService.get('app.language')) || navigator.language || defaultLanguage
@@ -52,18 +32,8 @@ export const getLanguageCode = async () => {
 // Map i18n language codes to dayjs locale codes
 const dayjsLocaleMap: Record<string, string> = {
   'en-US': 'en',
-  'ja-JP': 'ja',
-  'ru-RU': 'ru',
   'zh-CN': 'zh-cn',
-  'zh-TW': 'zh-tw',
-  'de-DE': 'de',
-  'el-GR': 'el',
-  'es-ES': 'es',
-  'fr-FR': 'fr',
-  'pt-PT': 'pt',
-  'ro-RO': 'ro',
-  'vi-VN': 'vi',
-  'tr-TR': 'tr'
+  'zh-TW': 'zh-tw'
 }
 
 export const setDayjsLocale = (language: string) => {

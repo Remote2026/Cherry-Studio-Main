@@ -1,7 +1,7 @@
 import { preferenceService } from '@data/PreferenceService'
 import { DataApiDevtools } from '@data/utils/dataApiDevtools'
 import { initI18n } from '@renderer/i18n/resolver'
-import { initSentry } from '@renderer/services/sentry'
+import { installGlobalErrorLogging } from '@renderer/services/LoggerService'
 import type { UnifiedPreferenceKeyType } from '@shared/data/preference/preferenceTypes'
 
 interface PrepareWindowOptions {
@@ -18,7 +18,7 @@ interface PrepareWindowOptions {
  * to defaults plus lazy per-key self-heal in `usePreference`.
  */
 export async function prepareWindow(options: PrepareWindowOptions): Promise<void> {
-  initSentry()
+  installGlobalErrorLogging()
 
   // Window-scoped dev bootstrap: expose the DataApi DevTools control surface
   // before the first render (and thus the first DataApi request) so payload

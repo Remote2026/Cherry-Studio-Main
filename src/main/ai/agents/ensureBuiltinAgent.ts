@@ -16,7 +16,8 @@ export function loadBuiltinAgentEnsureInput(
     ...defaults,
     builtinRole,
     preferredModelId: defaultModelId,
-    type: 'claude-code'
+    // 内网版裁掉了 Claude Code，内置智能体改用保留下来的 Pi 运行时。
+    type: 'pi'
   }
 }
 

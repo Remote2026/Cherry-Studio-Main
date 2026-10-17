@@ -1329,4 +1329,98 @@ describe('applyMigrations over a populated database', () => {
     expect(sqlite.pragma('foreign_key_check')).toEqual([])
     expect(String(sqlite.pragma('integrity_check', { simple: true }))).toBe('ok')
   })
+
+  it('moves legacy Claude agents to Pi and clears their runtime-specific state', () => {
+    applyMigrations(db, baselineMigrationsFolder(join(tempDir, 'baseline'), '0028_pi_runtime_cleanup'))
+    const now = 1000
+
+    sqlite
+      .prepare(
+        `INSERT INTO agent_workspace (id, name, path, type, order_key, created_at, updated_at)
+         VALUES ('workspace-1', 'Workspace', '/tmp/workspace', 'user', 'a0', ?, ?)`
+      )
+      .run(now, now)
+    const insertAgent = sqlite.prepare(
+      `INSERT INTO agent (id, type, name, instructions, plan_model, small_model, configuration, order_key, created_at, updated_at)
+       VALUES (?, ?, ?, 'instructions', 'provider::plan', 'provider::small', ?, 'a0', ?, ?)`
+    )
+    insertAgent.run(
+      'claude-agent',
+      'claude-code',
+      'Claude Agent',
+      JSON.stringify({ permission_mode: 'plan', env_vars: { ANTHROPIC_BASE_URL: 'x' }, avatar: '🧰' }),
+      now,
+      now
+    )
+    insertAgent.run(
+      'legacy-agent',
+      'cherry-claw',
+      'Legacy Agent',
+      JSON.stringify({ permission_mode: 'acceptEdits', env_vars: {} }),
+      now,
+      now
+    )
+    insertAgent.run(
+      'pi-agent',
+      'pi',
+      'Pi Agent',
+      JSON.stringify({ permission_mode: 'acceptEdits', env_vars: { KEEP: '1' } }),
+      now,
+      now
+    )
+
+    const insertSession = sqlite.prepare(
+      `INSERT INTO agent_session (id, agent_id, name, workspace_id, order_key, last_activity_at, created_at, updated_at)
+       VALUES (?, ?, 'Session', 'workspace-1', 'a0', ?, ?, ?)`
+    )
+    insertSession.run('claude-session', 'claude-agent', now, now, now)
+    insertSession.run('legacy-session', 'legacy-agent', now, now, now)
+    insertSession.run('pi-session', 'pi-agent', now, now, now)
+    const insertMessage = sqlite.prepare(
+      `INSERT INTO agent_session_message (id, session_id, role, data, status, runtime_resume_token, created_at, updated_at)
+       VALUES (?, ?, 'assistant', '{}', 'success', ?, ?, ?)`
+    )
+    insertMessage.run('claude-message', 'claude-session', 'claude-token', now, now)
+    insertMessage.run('legacy-message', 'legacy-session', 'legacy-token', now, now)
+    insertMessage.run('pi-message', 'pi-session', 'pi-token', now, now)
+
+    applyMigrations(db, resolveMigrationsPath())
+
+    const selectAgent = sqlite.prepare('SELECT type, plan_model, small_model, configuration FROM agent WHERE id = ?')
+    const readAgent = (id: string) => {
+      const row = selectAgent.get(id) as {
+        type: string
+        plan_model: string | null
+        small_model: string | null
+        configuration: string
+      }
+      return { ...row, configuration: JSON.parse(row.configuration) }
+    }
+
+    expect(readAgent('claude-agent')).toEqual({
+      type: 'pi',
+      plan_model: null,
+      small_model: null,
+      configuration: { permission_mode: 'auto', avatar: '🧰' }
+    })
+    expect(readAgent('legacy-agent')).toEqual({
+      type: 'pi',
+      plan_model: null,
+      small_model: null,
+      configuration: { permission_mode: 'acceptEdits' }
+    })
+    expect(readAgent('pi-agent')).toEqual({
+      type: 'pi',
+      plan_model: 'provider::plan',
+      small_model: 'provider::small',
+      configuration: { permission_mode: 'acceptEdits', env_vars: { KEEP: '1' } }
+    })
+
+    const selectToken = sqlite.prepare('SELECT runtime_resume_token FROM agent_session_message WHERE id = ?')
+    expect(selectToken.get('claude-message')).toEqual({ runtime_resume_token: null })
+    expect(selectToken.get('legacy-message')).toEqual({ runtime_resume_token: null })
+    expect(selectToken.get('pi-message')).toEqual({ runtime_resume_token: 'pi-token' })
+    expect(sqlite.pragma('foreign_key_check')).toEqual([])
+    expect(String(sqlite.pragma('integrity_check', { simple: true }))).toBe('ok')
+  })
 })

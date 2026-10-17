@@ -40,6 +40,28 @@ Cherry Studio is a desktop client that supports multiple LLM providers, availabl
 
 ❤️ Like Cherry Studio? Give it a star 🌟 or [Sponsor](docs/sponsor.md) to support the development!
 
+# 🗂 日志与崩溃诊断（内网版）
+
+部署、离线模型准备与功能边界的完整说明见 [软件使用说明](软件使用说明.md)。
+
+内网版已移除 Sentry 远端上报，所有诊断信息只留在本机。排查问题时按下面的路径找：
+
+| 内容 | 路径 |
+| --- | --- |
+| 应用日志（主进程 + 渲染进程） | `%APPDATA%\CherryStudio\logs\app.<日期>.log` |
+| 仅错误级别日志 | `%APPDATA%\CherryStudio\logs\app-error.<日期>.log` |
+| 崩溃转储 | `%APPDATA%\CherryStudio\Crashpad\reports\` |
+| 数据库与本地数据 | `%APPDATA%\CherryStudio\Data\` |
+
+日期格式为 `YYYY-MM-DD`，按天分文件。若安装时改过用户数据位置，把 `%APPDATA%\CherryStudio` 换成迁移后的实际目录（`app.getPath('userData')`）。
+
+诊断信息的采集点：
+
+- **渲染进程未捕获错误**：`window.onerror` 与 `unhandledrejection` 由 `installGlobalErrorLogging()` 接管（[LoggerService.ts](src/renderer/services/LoggerService.ts)），经 `App_LogToMain` 通道写入应用日志；React 渲染错误另由 ErrorBoundary 记录。
+- **主进程未捕获错误**：preboot 阶段即装好 `uncaughtExceptionMonitor` 与 `unhandledRejection` 处理器（[crashTelemetry.ts](src/main/core/preboot/crashTelemetry.ts)）。
+- **渲染进程卡死**：`unresponsive` 事件会采集卡住时的 JS 调用栈并写入日志。
+- **原生崩溃**：Electron `crashReporter` 以 `uploadToServer: false` 运行，转储留在本机。
+
 # 🌠 Screenshot
 
 ![](https://github.com/user-attachments/assets/36dddb2c-e0fb-4a5f-9411-91447bab6e18)

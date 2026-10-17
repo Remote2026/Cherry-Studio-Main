@@ -188,7 +188,7 @@ describe('ResourceCreateWizard', () => {
     expect(onSubmit).toHaveBeenCalledWith({
       avatar: '💬',
       name: 'My Resource',
-      agentType: 'claude-code',
+      agentType: 'pi',
       permissionMode: 'auto',
       modelId: 'provider::default',
       description: '',
@@ -275,7 +275,7 @@ describe('ResourceCreateWizard', () => {
     expect(onSubmit).toHaveBeenCalledWith({
       avatar: '💬',
       name: 'My Resource',
-      agentType: 'claude-code',
+      agentType: 'pi',
       permissionMode: 'auto',
       modelId: 'provider::model',
       description: '',
@@ -379,22 +379,18 @@ describe('ResourceCreateWizard', () => {
     expect(await screen.findByTestId('model-id')).toHaveTextContent('empty')
   })
 
-  it.each(['pi', 'dsh'] as const)(
-    'reselects a compatible default model after switching an agent to the %s runtime',
-    async (agentType) => {
-      const user = userEvent.setup()
-      modelHook.defaultModel = makeModel()
-      modelHook.defaultProvider = { id: 'provider', name: 'Provider', isEnabled: true } as Provider
-      modelHook.agentModelFilter.mockImplementation(
-        (agentType, _model, provider) => agentType === 'claude-code' || Boolean(provider)
-      )
+  // 默认运行时是 pi，切到 dsh 才能验证"换运行时后重选模型"。
+  it('reselects a compatible default model after switching an agent to another runtime', async () => {
+    const user = userEvent.setup()
+    modelHook.defaultModel = makeModel()
+    modelHook.defaultProvider = { id: 'provider', name: 'Provider', isEnabled: true } as Provider
+    modelHook.agentModelFilter.mockImplementation((_agentType, _model, provider) => Boolean(provider))
 
-      render(<ResourceCreateWizard kind="agent" open onOpenChange={vi.fn()} onSubmit={vi.fn()} />)
+    render(<ResourceCreateWizard kind="agent" open onOpenChange={vi.fn()} onSubmit={vi.fn()} />)
 
-      expect(await screen.findByTestId('model-id')).toHaveTextContent('provider::default')
-      await user.click(screen.getByRole('button', { name: `switch to ${agentType}` }))
+    expect(await screen.findByTestId('model-id')).toHaveTextContent('provider::default')
+    await user.click(screen.getByRole('button', { name: 'switch to dsh' }))
 
-      await waitFor(() => expect(screen.getByTestId('model-id')).toHaveTextContent('provider::default'))
-    }
-  )
+    await waitFor(() => expect(screen.getByTestId('model-id')).toHaveTextContent('provider::default'))
+  })
 })

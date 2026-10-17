@@ -2,16 +2,14 @@ appId: com.kangfenmao.CherryStudio
 productName: Cherry Studio
 extraMetadata:
   cherryEdition: global
+# 内网版只提供中英文（见 src/renderer/i18n/languages.ts），Electron 的 UI 语言 pak 同样只留这三种。
 electronLanguages:
   - zh-CN
   - zh-TW
   - en-US
-  - ja # macOS/linux/win
-  - ru # macOS/linux/win
   - zh_CN # for macOS
   - zh_TW # for macOS
   - en # for macOS
-  - de
 directories:
   buildResources: build
 
@@ -83,6 +81,29 @@ files:
   - "!**/*.{h,iobj,ipdb,tlog,recipe,vcxproj,vcxproj.filters,Makefile,*.Makefile}" # filter .node build files
   - "resources/**/*" # include all files in resources, and unpack them from asar for runtime access
   - "!resources/devtools/**" # dev-only extensions are loaded from source in development
+  # 内网版裁剪：以下资产在纯内网环境用不上，合计约 560 MB。恢复某项功能就删掉对应行；
+  # 内置 Python 供给走 uv/uvx，必须保留 resources/binaries/*/uv.exe 与 uvx.exe。
+  - "!resources/binaries/*/mise.exe" # DSH 工具链自动安装（内网取不到源）
+  - "!resources/binaries/*/mise-shim.exe"
+  - "!resources/binaries/*/bun.exe" # DSH 小程序/工具运行时
+  - "!resources/binaries/*/git/**" # 内置 MinGit（技能仓库等 git 功能）
+  - "!**/node_modules/@anthropic-ai/claude-agent-sdk*/**" # Claude Code 智能体：原生 CLI 与包 JS 一并去掉
+  - "!**/node_modules/@esbuild/win32-arm64/**" # 非目标架构
+  - "!**/node_modules/@paymoapp/electron-shutdown-handler/prebuilds/win32-arm64/**"
+  - "!**/node_modules/@earendil-works/pi-tui/native/{darwin,linux}/**"
+  - "!**/node_modules/better-sqlite3/build/Release/*.lib" # 链接期产物，运行不需要
+  # 内网版裁剪（第二轮，约 76 MB）。同一约定：恢复某项功能就删掉对应行。
+  - "!**/node_modules/@larksuiteoapi/**" # 飞书/Lark 渠道机器人
+  - "!**/node_modules/@sentry/**" # 崩溃上报：内网无出网端点，崩溃由本地日志与 minidump 承接
+  # @huggingface/transformers 必须保留：本地知识库的内置 embedding 走它。它只是 JS 运行时，
+  # 模型与 onnxruntime 绑定是部署期数据（见 catalog.ts），按需放进 userData 即可。
+  - "!**/node_modules/tesseract.js/**" # OCR：语言包要从 gitcode 下载，内网取不到
+  - "!**/node_modules/tesseract.js-core/**"
+  - "!**/node_modules/zlibjs/**"
+  # ppu-paddle-ocr / ppu-ocv / @techstark(opencv-js) 保留：本地 OCR 走 PaddleOCR，
+  # JS 部分约 10 MB，模型是部署期数据（见「软件使用说明」）。
+  # 主进程只按路径读 cmaps/standard_fonts，pdf.js 与 worker 已内联进渲染包。
+  - "!**/node_modules/pdfjs-dist/{build,legacy,web,image_decoders,iccs}/**"
   - "node_modules/@deepseek-ai/dsh-sandbox-windows-acl/assets/**"
 asarUnpack:
   - resources/**

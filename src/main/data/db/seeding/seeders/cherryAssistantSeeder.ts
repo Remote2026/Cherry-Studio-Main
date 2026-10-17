@@ -42,7 +42,8 @@ export class CherryAssistantSeeder implements ISeeder {
       const agentId = uuidv4()
       const row = agentService.createAgentTx(tx, agentId, {
         id: agentId,
-        type: 'claude-code',
+        // 内网版裁掉了 Claude Code（原生 CLI 与 SDK 都不在包里），内置智能体改用保留下来的 Pi 运行时。
+        type: 'pi',
         name: this.getNameForPreferredSystemLanguage(),
         description: '',
         instructions: '',

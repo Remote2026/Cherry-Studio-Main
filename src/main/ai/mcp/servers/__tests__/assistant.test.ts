@@ -355,7 +355,7 @@ describe('create_agent', () => {
     })
 
     expect(mocks.agentCreate).toHaveBeenCalledWith({
-      type: 'claude-code',
+      type: 'pi',
       name: 'Reviewer',
       description: 'Reviews code',
       instructions: 'Review Python code.',

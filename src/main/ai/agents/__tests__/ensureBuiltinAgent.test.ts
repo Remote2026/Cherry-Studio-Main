@@ -44,7 +44,7 @@ describe('ensureBuiltinAgent command', () => {
       name: 'Cherry Support',
       builtinRole: 'support',
       preferredModelId: 'anthropic::claude-sonnet-4-5',
-      type: 'claude-code',
+      type: 'pi',
       configuration: {
         avatar: '🧰',
         permission_mode: 'default',

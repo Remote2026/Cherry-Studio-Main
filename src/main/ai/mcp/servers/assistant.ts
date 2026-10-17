@@ -296,7 +296,7 @@ async function createAgent(
 
   try {
     const result = await createAgentCommand({
-      type: 'claude-code',
+      type: 'pi',
       name,
       description,
       instructions,
@@ -745,7 +745,7 @@ ${Object.values(APPLY_SETTING_REGISTRY)
         description: `Create a new Cherry Studio Agent on behalf of the user. Use this when the user explicitly asks to create / build / make a new agent (e.g. "帮我建一个专门做 Python 代码 review 的 Agent"). MUST collect requirements via conversation first, then SHOW the proposed config to the user for confirmation, and only call this tool after explicit user agreement.
 
 Safety rules:
-- type is fixed to 'claude-code' (channel-backed agents are out of scope here)
+- type is fixed to 'pi' (channel-backed agents are out of scope here)
 - a workspace is selected when the user opens a session for the new agent
 - permission_mode defaults to 'default' (read-mostly); user can change later in the UI
 

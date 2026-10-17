@@ -2,20 +2,11 @@ import type { LanguageVarious } from '@shared/data/preference/preferenceTypes'
 import { languageNativeNameMap } from '@shared/utils/languages'
 
 /** Display order of the app's language picker. Labels come from the shared native-name map. */
+/** 内网版只发布中英文；其余语言码仍留在 LanguageVarious 里，但既不进选择器也不打包语言包。 */
 const APP_LANGUAGE_FLAGS: ReadonlyArray<{ value: LanguageVarious; flag: string }> = [
   { value: 'zh-CN', flag: '🇨🇳' },
   { value: 'zh-TW', flag: '🇭🇰' },
-  { value: 'en-US', flag: '🇺🇸' },
-  { value: 'de-DE', flag: '🇩🇪' },
-  { value: 'ja-JP', flag: '🇯🇵' },
-  { value: 'ru-RU', flag: '🇷🇺' },
-  { value: 'el-GR', flag: '🇬🇷' },
-  { value: 'es-ES', flag: '🇪🇸' },
-  { value: 'fr-FR', flag: '🇫🇷' },
-  { value: 'pt-PT', flag: '🇵🇹' },
-  { value: 'ro-RO', flag: '🇷🇴' },
-  { value: 'vi-VN', flag: '🇻🇳' },
-  { value: 'tr-TR', flag: '🇹🇷' }
+  { value: 'en-US', flag: '🇺🇸' }
 ]
 
 export const appLanguageOptions: ReadonlyArray<{

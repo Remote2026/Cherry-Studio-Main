@@ -37,11 +37,11 @@ describe('renderer i18n lazy init', () => {
     expect(i18n.t('common.copy')).toBe('Copy')
   })
 
-  it('lazy-loads the Turkish pack when switching language', async () => {
-    await i18n.changeLanguage('tr-TR')
+  it('lazy-loads the simplified-Chinese pack when switching language', async () => {
+    await i18n.changeLanguage('zh-CN')
 
-    expect(i18n.hasResourceBundle('tr-TR', 'translation')).toBe(true)
-    expect(i18n.t('common.copy')).toBe('Kopyala')
+    expect(i18n.hasResourceBundle('zh-CN', 'translation')).toBe(true)
+    expect(i18n.t('common.copy')).toBe('复制')
   })
 
   it('uses singular and plural diagnostic file summaries in English', async () => {

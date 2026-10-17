@@ -93,21 +93,8 @@ const expectedVariableCounts: Record<string, number> = {
   'low-angle-fashion': 7
 }
 
-const expectedAppLocaleFiles = [
-  'locales/en-us.json',
-  'locales/zh-cn.json',
-  'locales/de-de.json',
-  'locales/el-gr.json',
-  'locales/es-es.json',
-  'locales/fr-fr.json',
-  'locales/ja-jp.json',
-  'locales/pt-pt.json',
-  'locales/ro-ro.json',
-  'locales/ru-ru.json',
-  'locales/tr-tr.json',
-  'locales/vi-vn.json',
-  'locales/zh-tw.json'
-]
+// 内网版只发布中英文，语言包集合必须与 src/renderer/i18n/languages.ts 的选择器一致。
+const expectedAppLocaleFiles = ['locales/en-us.json', 'locales/zh-cn.json', 'locales/zh-tw.json']
 
 const readPaintingShowcaseTranslation = (relativeFilePath: string) => {
   const locale = JSON.parse(fs.readFileSync(path.join(rendererI18nRoot, relativeFilePath), 'utf8')) as Record<

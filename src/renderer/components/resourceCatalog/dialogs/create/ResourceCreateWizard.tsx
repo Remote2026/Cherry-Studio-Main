@@ -48,8 +48,9 @@ function getDefaultValues(kind: ResourceCreateWizardKind, initialName = ''): Res
     avatar: getResourceCreateDefaultAvatar(kind),
     name: initialName,
     description: '',
-    agentType: 'claude-code',
-    permissionMode: AGENT_RUNTIME_CAPABILITIES['claude-code'].createDefaults.permissionMode,
+    // 内网版裁掉了 Claude Code，新建智能体默认用保留下来的 Pi 运行时。
+    agentType: 'pi',
+    permissionMode: AGENT_RUNTIME_CAPABILITIES.pi.createDefaults.permissionMode,
     modelId: null,
     prompt: '',
     knowledgeBaseIds: [],

@@ -79,6 +79,7 @@
       "/settings/prompts",
       "/settings/provider",
       "/settings/quick-assistant",
+      "/settings/ragflow",
       "/settings/scheduled-tasks",
       "/settings/screenshot",
       "/settings/search",
@@ -776,56 +777,6 @@
       "value": "en-US",
       "flag": "🇺🇸",
       "label": "English"
-    },
-    {
-      "value": "de-DE",
-      "flag": "🇩🇪",
-      "label": "Deutsch"
-    },
-    {
-      "value": "ja-JP",
-      "flag": "🇯🇵",
-      "label": "日本語"
-    },
-    {
-      "value": "ru-RU",
-      "flag": "🇷🇺",
-      "label": "Русский"
-    },
-    {
-      "value": "el-GR",
-      "flag": "🇬🇷",
-      "label": "Ελληνικά"
-    },
-    {
-      "value": "es-ES",
-      "flag": "🇪🇸",
-      "label": "Español"
-    },
-    {
-      "value": "fr-FR",
-      "flag": "🇫🇷",
-      "label": "Français"
-    },
-    {
-      "value": "pt-PT",
-      "flag": "🇵🇹",
-      "label": "Português"
-    },
-    {
-      "value": "ro-RO",
-      "flag": "🇷🇴",
-      "label": "Română"
-    },
-    {
-      "value": "vi-VN",
-      "flag": "🇻🇳",
-      "label": "Tiếng Việt"
-    },
-    {
-      "value": "tr-TR",
-      "flag": "🇹🇷",
-      "label": "Türkçe"
     }
   ],
   "agents": {
