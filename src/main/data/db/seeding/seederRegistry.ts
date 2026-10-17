@@ -1,4 +1,5 @@
 import type { ISeeder } from '../types'
+import { BidAnalysisSeeder } from './seeders/bidAnalysisSeeder'
 import { BrowserCapabilityUpgradeSeeder } from './seeders/browserCapabilityUpgradeSeeder'
 import { BuiltinMcpServerSeeder } from './seeders/builtinMcpServerSeeder'
 import { CherryAiDefaultModelSeeder } from './seeders/cherryaiDefaultModelSeeder'
@@ -30,6 +31,7 @@ export const seeders: ISeeder[] = [
   new CherryAiDefaultModelSeeder(),
   new CherryAssistantSeeder(),
   new CherrySupportSeeder(),
+  new BidAnalysisSeeder(),
   new DefaultAssistantSeeder(),
   new LongTextPastePreferenceUpgradeSeeder(),
   new WebSearchPreferenceUpgradeSeeder(),

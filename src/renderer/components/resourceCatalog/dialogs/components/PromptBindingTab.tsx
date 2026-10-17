@@ -1,14 +1,14 @@
-import { GripVertical, Plus, Unlink, Zap } from 'lucide-react'
+import { GripVertical, Pencil, Plus, Unlink, Zap } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { Alert, Button, EmptyState, ReorderableList, Tooltip } from '@cherrystudio/ui'
 import { useDataChange, useQuery } from '@data/hooks/useDataApi'
 import { useReorder } from '@data/hooks/useReorder'
-import { usePromptBindingMutations, usePromptMutations } from '@renderer/hooks/resourceCatalog'
+import { usePromptBindingMutations, usePromptMutations, usePromptMutationsById } from '@renderer/hooks/resourceCatalog'
 import { toast } from '@renderer/services/toast'
 import { formatErrorMessageWithPrefix } from '@renderer/utils/error'
-import type { PromptBindingTarget, PromptVisibility } from '@shared/data/types/prompt'
+import type { Prompt, PromptBindingTarget, PromptVisibility } from '@shared/data/types/prompt'
 
 import { PromptEditDialog } from '../edit'
 import { AddCatalogPopover, CatalogEmptyPlaceholder } from './CatalogPicker'
@@ -20,9 +20,31 @@ export type PromptBindingTabProps = {
   portalContainer?: HTMLElement | null
 }
 
+function EditBoundPromptHost({ prompt, onClose }: { prompt: Prompt; onClose: () => void }) {
+  const { t } = useTranslation()
+  const { updatePrompt } = usePromptMutationsById(prompt.id)
+
+  const handleSave = useCallback(
+    async (data: { title: string; content: string; visibility: PromptVisibility }) => {
+      try {
+        // Visibility and bindings belong to the binding row, not this editor.
+        await updatePrompt({ title: data.title, content: data.content })
+        onClose()
+      } catch (error) {
+        toast.error(formatErrorMessageWithPrefix(error, t('settings.prompts.errors.updateFailed')))
+        throw error
+      }
+    },
+    [onClose, t, updatePrompt]
+  )
+
+  return <PromptEditDialog open prompt={prompt} defaultVisibility="restricted" onSave={handleSave} onCancel={onClose} />
+}
+
 export function PromptBindingTab({ enabled, target, portalContainer }: PromptBindingTabProps) {
   const { t } = useTranslation()
   const [isCreatePromptOpen, setIsCreatePromptOpen] = useState(false)
+  const [editingPrompt, setEditingPrompt] = useState<Prompt | null>(null)
   const [isBinding, setIsBinding] = useState(false)
   const isBindingRef = useRef(false)
   const bindingOperationGenerationRef = useRef(0)
@@ -66,6 +88,7 @@ export function PromptBindingTab({ enabled, target, portalContainer }: PromptBin
     isBindingRef.current = false
     setIsBinding(false)
     setIsCreatePromptOpen(false)
+    setEditingPrompt(null)
   }, [bindingTarget.id, bindingTarget.type])
 
   useEffect(() => {
@@ -229,6 +252,18 @@ export function PromptBindingTab({ enabled, target, portalContainer }: PromptBin
                     </div>
                   ) : null}
                 </div>
+                <Tooltip content={t('settings.prompts.edit')}>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    disabled={isBinding || isReordering}
+                    onClick={() => setEditingPrompt(prompt)}
+                    aria-label={t('settings.prompts.edit')}
+                    className="flex h-6 min-h-0 w-6 shrink-0 items-center justify-center rounded-md font-normal text-muted-foreground opacity-0 shadow-none transition-all hover:bg-accent/50 hover:text-foreground focus-visible:opacity-100 focus-visible:ring-0 group-hover:opacity-100">
+                    <Pencil size={10} />
+                  </Button>
+                </Tooltip>
                 <Tooltip content={t('settings.prompts.binding.remove', { title: prompt.title })}>
                   <Button
                     type="button"
@@ -253,6 +288,8 @@ export function PromptBindingTab({ enabled, target, portalContainer }: PromptBin
         onSave={handleCreatePrompt}
         onCancel={() => setIsCreatePromptOpen(false)}
       />
+
+      {editingPrompt ? <EditBoundPromptHost prompt={editingPrompt} onClose={() => setEditingPrompt(null)} /> : null}
     </>
   )
 }
