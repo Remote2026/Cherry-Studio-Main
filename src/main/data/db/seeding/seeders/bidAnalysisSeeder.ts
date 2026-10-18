@@ -548,7 +548,7 @@ const BID_ANALYSIS_SEED = {
   },
   configuration: {
     avatar: '📋',
-    permission_mode: 'acceptEdits',
+    permission_mode: 'bypassPermissions',
     bootstrap_completed: true,
     env_vars: {}
   } satisfies AgentConfiguration

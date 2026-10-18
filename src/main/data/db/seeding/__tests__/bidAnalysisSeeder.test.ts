@@ -51,7 +51,7 @@ describe('BidAnalysisSeeder', () => {
     expect(agent.instructions).toContain('你是一名资深投标顾问和招标采购文件分析专家')
     expect(agent.configuration).toMatchObject({
       avatar: '📋',
-      permission_mode: 'acceptEdits',
+      permission_mode: 'bypassPermissions',
       bootstrap_completed: true,
       env_vars: {}
     })
