@@ -1,5 +1,5 @@
 import { renderHook } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { AgentSessionEntity } from '@shared/data/api/schemas/agentSessions'
 
@@ -7,7 +7,11 @@ const mocks = vi.hoisted(() => ({
   agent: undefined as any,
   agentLoading: false,
   agentLookupId: undefined as string | null | undefined,
-  modelLookupId: undefined as string | null | undefined
+  modelLookupId: undefined as string | null | undefined,
+  modelOverride: undefined as any,
+  modelLoading: false,
+  modelError: undefined as Error | undefined,
+  refetchModel: vi.fn()
 }))
 
 vi.mock('@renderer/hooks/agent/useAgent', () => ({
@@ -21,8 +25,15 @@ vi.mock('@renderer/hooks/useModel', () => ({
   useModelById: (modelId: string | null | undefined) => {
     mocks.modelLookupId = modelId
     return {
-      model: modelId ? { id: modelId, providerId: modelId.split('::')[0] } : undefined,
-      isLoading: Boolean(modelId)
+      model:
+        mocks.modelOverride !== undefined
+          ? mocks.modelOverride
+          : modelId
+            ? { id: modelId, providerId: modelId.split('::')[0] }
+            : undefined,
+      isLoading: mocks.modelLoading,
+      error: mocks.modelError,
+      refetch: mocks.refetchModel
     }
   }
 }))
@@ -37,6 +48,14 @@ describe('useAgentConversationBootstrap', () => {
     mocks.agentLoading = false
     mocks.agentLookupId = undefined
     mocks.modelLookupId = undefined
+    mocks.modelOverride = undefined
+    mocks.modelLoading = false
+    mocks.modelError = undefined
+    mocks.refetchModel.mockReset()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
   })
 
   it('uses the list agent as a key hint while the canonical agent is loading', () => {
@@ -85,5 +104,26 @@ describe('useAgentConversationBootstrap', () => {
     )
 
     expect(mocks.modelLookupId).toBeUndefined()
+  })
+
+  it('retries a failed model lookup once so the selected model appears after startup', () => {
+    vi.useFakeTimers()
+    mocks.agent = { id: 'agent-1', model: 'provider::model' }
+    mocks.modelOverride = null
+    mocks.modelError = new Error('Request timeout')
+
+    renderHook(() =>
+      useAgentConversationBootstrap({
+        session,
+        sessionLoading: false,
+        sessionSource: 'query'
+      })
+    )
+
+    expect(mocks.refetchModel).not.toHaveBeenCalled()
+    vi.advanceTimersByTime(1000)
+    expect(mocks.refetchModel).toHaveBeenCalledTimes(1)
+    vi.advanceTimersByTime(5000)
+    expect(mocks.refetchModel).toHaveBeenCalledTimes(1)
   })
 })
