@@ -2,6 +2,7 @@ import type { ISeeder } from '../types'
 import { BidAnalysisSeeder } from './seeders/bidAnalysisSeeder'
 import { BrowserCapabilityUpgradeSeeder } from './seeders/browserCapabilityUpgradeSeeder'
 import { BuiltinMcpServerSeeder } from './seeders/builtinMcpServerSeeder'
+import { BusinessBidSeeder } from './seeders/businessBidSeeder'
 import { CherryAiDefaultModelSeeder } from './seeders/cherryaiDefaultModelSeeder'
 import { CherryAssistantSeeder } from './seeders/cherryAssistantSeeder'
 import { CherrySupportSeeder } from './seeders/cherrySupportSeeder'
@@ -32,6 +33,7 @@ export const seeders: ISeeder[] = [
   new CherryAssistantSeeder(),
   new CherrySupportSeeder(),
   new BidAnalysisSeeder(),
+  new BusinessBidSeeder(),
   new DefaultAssistantSeeder(),
   new LongTextPastePreferenceUpgradeSeeder(),
   new WebSearchPreferenceUpgradeSeeder(),
