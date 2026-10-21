@@ -63,7 +63,6 @@ vi.mock('@renderer/hooks/useModel', () => ({
 
 vi.mock('@renderer/services/toast', () => ({
   toast: {
-    success: (...args: unknown[]) => toastSuccessMock(...args),
     error: (...args: unknown[]) => toastErrorMock(...args)
   }
 }))
