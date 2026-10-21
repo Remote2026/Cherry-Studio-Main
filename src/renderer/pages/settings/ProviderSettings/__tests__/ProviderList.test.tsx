@@ -367,6 +367,12 @@ describe('ProviderList', () => {
     expect(onCustomProviderCreated).toHaveBeenCalledWith('custom-provider', true)
   })
 
+  it('opens the custom provider form on mount when autoOpenCreateProvider is set', async () => {
+    render(<ProviderList selectedProviderId="openai" autoOpenCreateProvider onSelectProvider={vi.fn()} />)
+
+    expect(await screen.findByTestId('provider-editor-drawer')).toHaveAttribute('data-open', 'true')
+  })
+
   it('does not scroll back to the selected provider after drag reorder changes provider order', () => {
     const reorderableProviders = [
       { ...providers[0], isEnabled: true },

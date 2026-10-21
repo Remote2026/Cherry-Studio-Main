@@ -22,9 +22,10 @@ interface PendingApiSetup {
 
 interface ProviderSettingsContentProps {
   rawProviders: Provider[]
+  autoOpenCreateProvider?: boolean
 }
 
-function ProviderSettingsContent({ rawProviders }: ProviderSettingsContentProps) {
+function ProviderSettingsContent({ rawProviders, autoOpenCreateProvider = false }: ProviderSettingsContentProps) {
   const search = useSearch<AppRouter, undefined, false>({ strict: false })
   const navigate = useNavigate()
   const [lastSelectedProviderId, setLastSelectedProviderId] = usePersistCache(
@@ -120,6 +121,7 @@ function ProviderSettingsContent({ rawProviders }: ProviderSettingsContentProps)
       <ProviderList
         selectedProviderId={selectedProviderId}
         filterModeHint={filterModeHint}
+        autoOpenCreateProvider={autoOpenCreateProvider}
         onSelectProvider={setSelectedProviderId}
         onCustomProviderCreated={handleCustomProviderCreated}
       />
@@ -137,7 +139,11 @@ function ProviderSettingsContent({ rawProviders }: ProviderSettingsContentProps)
   )
 }
 
-export default function ProviderSettingsPage() {
+interface ProviderSettingsPageProps {
+  autoOpenCreateProvider?: boolean
+}
+
+export default function ProviderSettingsPage({ autoOpenCreateProvider = false }: ProviderSettingsPageProps) {
   const { t } = useTranslation()
   const { providers, hasLoaded, isLoading, error, refetch } = useProviders()
 
@@ -168,5 +174,5 @@ export default function ProviderSettingsPage() {
     )
   }
 
-  return <ProviderSettingsContent rawProviders={providers} />
+  return <ProviderSettingsContent rawProviders={providers} autoOpenCreateProvider={autoOpenCreateProvider} />
 }

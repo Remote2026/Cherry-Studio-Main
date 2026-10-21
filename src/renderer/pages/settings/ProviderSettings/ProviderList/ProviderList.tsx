@@ -32,6 +32,7 @@ const ProviderEditorDrawer = lazy(() => import('./ProviderEditorDrawer'))
 export interface ProviderListProps {
   selectedProviderId?: string
   filterModeHint?: ProviderFilterMode
+  autoOpenCreateProvider?: boolean
   onSelectProvider: (providerId: string) => void
   onCustomProviderCreated?: (providerId: string, hasApiKey: boolean) => void
 }
@@ -39,6 +40,7 @@ export interface ProviderListProps {
 export default function ProviderList({
   selectedProviderId,
   filterModeHint,
+  autoOpenCreateProvider = false,
   onSelectProvider,
   onCustomProviderCreated
 }: ProviderListProps) {
@@ -85,6 +87,13 @@ export default function ProviderList({
     setEditorActivated(true)
     startAdd()
   }, [startAdd])
+
+  useEffect(() => {
+    if (autoOpenCreateProvider) {
+      openProviderEditor()
+    }
+  }, [autoOpenCreateProvider, openProviderEditor])
+
   const openProviderEditorFrom = useCallback(
     (provider: Provider) => {
       setEditorActivated(true)
