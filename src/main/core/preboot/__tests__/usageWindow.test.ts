@@ -1,13 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-const showErrorBoxMock = vi.fn()
 const exitMock = vi.fn()
 
-function stubElectron() {
-  vi.doMock('electron', () => ({
-    __esModule: true,
-    dialog: { showErrorBox: showErrorBoxMock }
-  }))
+function stubApplication() {
   vi.doMock('@application', () => ({
     application: { forceExit: exitMock }
   }))
@@ -19,9 +14,8 @@ async function loadModule() {
 
 beforeEach(() => {
   vi.resetModules()
-  showErrorBoxMock.mockReset()
   exitMock.mockReset()
-  stubElectron()
+  stubApplication()
 })
 
 afterEach(() => {
@@ -37,10 +31,9 @@ describe('enforceUsageWindow', () => {
     enforceUsageWindow()
 
     expect(exitMock).not.toHaveBeenCalled()
-    expect(showErrorBoxMock).not.toHaveBeenCalled()
   })
 
-  it('refuses startup from 2028-01-01', async () => {
+  it('exits silently from 2028-01-01', async () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date(2028, 0, 1, 0, 0, 0))
     const { enforceUsageWindow } = await loadModule()
@@ -48,6 +41,5 @@ describe('enforceUsageWindow', () => {
     enforceUsageWindow()
 
     expect(exitMock).toHaveBeenCalledWith(0)
-    expect(showErrorBoxMock).toHaveBeenCalledOnce()
   })
 })
