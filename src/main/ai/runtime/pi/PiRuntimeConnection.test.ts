@@ -97,6 +97,7 @@ const mocks = vi.hoisted(() => ({
   settingsArgs: undefined as unknown[] | undefined,
   piSettingsFile: '',
   autoDiscoverGitBash: vi.fn(),
+  getBundledGitBashPath: vi.fn(),
   validateGitBashPath: vi.fn((shellPath?: string | null) => shellPath ?? null),
   setShellCommandPrefix: vi.fn(),
   getShellEnv: vi.fn(),
@@ -154,6 +155,9 @@ vi.mock('@main/utils/prompt', () => ({ replacePromptVariables: mocks.replaceProm
 vi.mock('@main/utils/commandResolver', () => ({
   autoDiscoverGitBash: mocks.autoDiscoverGitBash,
   validateGitBashPath: mocks.validateGitBashPath
+}))
+vi.mock('@main/utils/bundledGit', () => ({
+  getBundledGitBashPath: mocks.getBundledGitBashPath
 }))
 vi.mock('@main/ai/runtime/agentMcpServers', () => ({
   buildAgentMcpServers: mocks.buildAgentMcpServers,
@@ -345,6 +349,7 @@ beforeEach(() => {
   mocks.piSettingsFile = path.join(MISSING_PI_AGENT_DIR, 'settings.json')
   mocks.readFileSync.mockImplementation(actualReadFileSync)
   mocks.autoDiscoverGitBash.mockReturnValue(null)
+  mocks.getBundledGitBashPath.mockReturnValue(null)
   mocks.validateGitBashPath.mockImplementation((shellPath?: string | null) => shellPath ?? null)
   mocks.getShellEnv.mockResolvedValue({ PATH: '/opt/homebrew/bin:/usr/bin' })
   mocks.isStreaming = false
@@ -1659,6 +1664,89 @@ describe('PiRuntimeConnection', () => {
 
     expect(mocks.settingsArgs).toMatchObject([{ shellPath: fallbackPath }, { projectTrusted: true }])
     expect(mocks.bashToolOptions).toMatchObject({ shellPath: fallbackPath })
+  })
+
+  it('falls back to the bundled shell when no system Git Bash is discovered', async () => {
+    const platform = vi.spyOn(process, 'platform', 'get').mockReturnValue('win32')
+    const bundledShell = '/cherry/resources/binaries/win32-x64/git/usr/bin/sh.exe'
+    mocks.autoDiscoverGitBash.mockReturnValue(null)
+    mocks.getBundledGitBashPath.mockReturnValue(bundledShell)
+
+    try {
+      await new PiRuntimeConnection(input).start()
+    } finally {
+      platform.mockRestore()
+    }
+
+    expect(mocks.settingsArgs).toMatchObject([{ shellPath: bundledShell }, { projectTrusted: true }])
+    expect(mocks.bashToolOptions).toMatchObject({ shellPath: bundledShell })
+  })
+
+  it('puts the bundled shell bin dir first on PATH so bash finds its coreutils', async () => {
+    const platform = vi.spyOn(process, 'platform', 'get').mockReturnValue('win32')
+    const bundledShell = '/cherry/resources/binaries/win32-x64/git/usr/bin/sh.exe'
+    mocks.autoDiscoverGitBash.mockReturnValue(null)
+    mocks.getBundledGitBashPath.mockReturnValue(bundledShell)
+
+    try {
+      await new PiRuntimeConnection(input).start()
+    } finally {
+      platform.mockRestore()
+    }
+
+    const spawnHook = (
+      mocks.bashToolOptions as {
+        spawnHook: (context: { command: string; cwd: string; env: NodeJS.ProcessEnv }) => {
+          env: Record<string, string | undefined>
+        }
+      }
+    ).spawnHook
+    const result = spawnHook({
+      command: 'ls',
+      cwd: WORKSPACE,
+      env: { PATH: ['/pi/agent/bin', '/system/bin'].join(path.delimiter) }
+    })
+
+    expect(result.env.PATH?.split(path.delimiter)).toEqual([
+      path.dirname(bundledShell),
+      path.join('/cherry/Toolchain/mise', 'shims'),
+      '/cherry/bin',
+      '/pi/agent/bin',
+      '/system/bin'
+    ])
+  })
+
+  it('does not add a shell dir to PATH when a system Git Bash is used', async () => {
+    const platform = vi.spyOn(process, 'platform', 'get').mockReturnValue('win32')
+    const systemShell = 'C:\\Program Files\\Git\\bin\\bash.exe'
+    mocks.autoDiscoverGitBash.mockReturnValue(systemShell)
+    mocks.getBundledGitBashPath.mockReturnValue('/cherry/resources/binaries/win32-x64/git/usr/bin/sh.exe')
+
+    try {
+      await new PiRuntimeConnection(input).start()
+    } finally {
+      platform.mockRestore()
+    }
+
+    const spawnHook = (
+      mocks.bashToolOptions as {
+        spawnHook: (context: { command: string; cwd: string; env: NodeJS.ProcessEnv }) => {
+          env: Record<string, string | undefined>
+        }
+      }
+    ).spawnHook
+    const result = spawnHook({
+      command: 'ls',
+      cwd: WORKSPACE,
+      env: { PATH: ['/pi/agent/bin', '/system/bin'].join(path.delimiter) }
+    })
+
+    expect(result.env.PATH?.split(path.delimiter)).toEqual([
+      path.join('/cherry/Toolchain/mise', 'shims'),
+      '/cherry/bin',
+      '/pi/agent/bin',
+      '/system/bin'
+    ])
   })
 
   it('injects the agent enabled managed skills as additionalSkillPaths while keeping noSkills', async () => {

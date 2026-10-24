@@ -674,7 +674,10 @@ Allowed in v1:
   tool. Without it pi resolves `bash` from PATH and silently lands in the WSL
   shim. An invalid configured path fails startup rather than switching
   execution environments behind the user's back; an absent one falls back to
-  Cherry's own Git Bash discovery.
+  Cherry's own Git Bash discovery, then to the bundled MinGit shell
+  (`git/usr/bin/sh.exe`, which is GNU bash), so an intranet machine without Git
+  for Windows still has a shell. When that bundled shell runs, its `usr/bin` is
+  prepended to the tool PATH so coreutils resolve.
 
 Disallowed in v1 unless Cherry adds an explicit trust/import flow:
 

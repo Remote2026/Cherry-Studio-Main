@@ -35,3 +35,18 @@ export function getBundledGitDir(): string | null {
   const gitExe = getBundledGitPath()
   return gitExe ? path.dirname(gitExe) : null
 }
+
+/**
+ * Resolve a bash executable inside the bundled MinGit tree, or null when absent.
+ * A full Git for Windows layout has `bin/bash.exe`; the shipped MinGit only has
+ * `usr/bin/sh.exe`, which is the same GNU bash binary under its POSIX name.
+ */
+export function getBundledGitBashPath(): string | null {
+  if (!isWin) {
+    return null
+  }
+  const platformKey = `${process.platform}-${process.arch}`
+  const gitRoot = toAsarUnpackedPath(path.join(application.getPath('app.root.resources.binaries'), platformKey, 'git'))
+  const candidates = [path.join(gitRoot, 'bin', 'bash.exe'), path.join(gitRoot, 'usr', 'bin', 'sh.exe')]
+  return candidates.find((candidate) => fs.existsSync(candidate)) ?? null
+}

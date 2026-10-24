@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { readFileSync } from 'node:fs'
+import path from 'node:path'
 
 import type { AssistantMessage, AssistantMessageEvent } from '@earendil-works/pi-ai'
 import type {
@@ -33,8 +34,10 @@ import {
   getBinarySearchDirs,
   getBinaryShimsDir,
   mergeBinaryExecutionEnv,
+  mergePathPrefixes,
   mergePathSuffixes
 } from '@main/utils/binaryEnv'
+import { getBundledGitBashPath } from '@main/utils/bundledGit'
 import { applyBundledPythonExecution } from '@main/utils/bundledPython'
 import { autoDiscoverGitBash, validateGitBashPath } from '@main/utils/commandResolver'
 import { getPathFromEnvironment, getShellEnv } from '@main/utils/shellEnv'
@@ -106,10 +109,10 @@ function readPiShellPathSetting(): string | undefined {
   }
 }
 
-function resolvePiShellPath(): string | undefined {
+function resolvePiShellPath(bundledShellPath: string | null): string | undefined {
   if (process.platform !== 'win32') return undefined
   const configured = readPiShellPathSetting()
-  if (!configured) return autoDiscoverGitBash() ?? undefined
+  if (!configured) return autoDiscoverGitBash() ?? bundledShellPath ?? undefined
 
   const shellPath = validateGitBashPath(configured)
   if (!shellPath) throw new Error(`Configured Pi shellPath is unavailable or is not bash.exe: ${configured}`)
@@ -132,7 +135,7 @@ const PI_NON_BYPASSABLE_APPROVAL_TOOLS = new Set(
   )
 )
 
-function mergePiBashExecutionEnv(env: NodeJS.ProcessEnv): Record<string, string> {
+function mergePiBashExecutionEnv(env: NodeJS.ProcessEnv, bundledShellDir?: string): Record<string, string> {
   const definedEnv = Object.fromEntries(
     Object.entries(env).filter((entry): entry is [string, string] => entry[1] !== undefined)
   )
@@ -146,10 +149,18 @@ function mergePiBashExecutionEnv(env: NodeJS.ProcessEnv): Record<string, string>
     // redirect that installation to Cherry's isolated data directory or expose Cherry's shims
     // under an incompatible MISE_* contract. Bundled standalone binaries remain a safe fallback,
     // but stay behind the caller's PATH so they cannot replace the user's own tool versions.
-    return applyBundledPythonExecution(mergePathSuffixes(definedEnv, standaloneBinaryDirs, [managedShimsDir]))
+    const merged = mergePathSuffixes(definedEnv, standaloneBinaryDirs, [managedShimsDir])
+    return applyBundledPythonExecution(withBundledShellDir(merged, bundledShellDir))
   }
 
-  return applyBundledPythonExecution(mergeBinaryExecutionEnv(definedEnv, standaloneBinaryDirs))
+  const merged = mergeBinaryExecutionEnv(definedEnv, standaloneBinaryDirs)
+  return applyBundledPythonExecution(withBundledShellDir(merged, bundledShellDir))
+}
+
+/** MinGit's `sh.exe` is raw MSYS bash: unlike Git for Windows' `bin/bash.exe` wrapper it does not
+ *  add its own `usr/bin`, so its coreutils must lead PATH to behave like bash. */
+function withBundledShellDir(env: Record<string, string>, bundledShellDir?: string): Record<string, string> {
+  return bundledShellDir ? mergePathPrefixes(env, [bundledShellDir]) : env
 }
 
 interface PendingSteer {
@@ -295,7 +306,9 @@ export class PiRuntimeConnection implements AgentRuntimeConnection {
       // The workspace is always trusted: the user picked it by hand in Cherry, so there is
       // no separate "do you trust this project?" prompt. What actually loads from it is
       // still governed by the explicit `no*` flags below.
-      const shellPath = resolvePiShellPath()
+      const bundledShellPath = getBundledGitBashPath()
+      const shellPath = resolvePiShellPath(bundledShellPath)
+      const bundledShellDir = shellPath && shellPath === bundledShellPath ? path.dirname(shellPath) : undefined
       const settingsManager = pi.SettingsManager.inMemory(
         {
           ...(shellPath ? { shellPath } : {}),
@@ -401,7 +414,7 @@ export class PiRuntimeConnection implements AgentRuntimeConnection {
         shellPath,
         spawnHook: (context) => ({
           ...context,
-          env: mergePiBashExecutionEnv(context.env)
+          env: mergePiBashExecutionEnv(context.env, bundledShellDir)
         })
       }) as ToolDefinition
       const finalSnapshot = await capturePiConnectionSnapshot(

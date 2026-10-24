@@ -143,13 +143,17 @@ describe('packaged dependency contents', () => {
     }
   })
 
-  it('keeps uv/uvx/rg for the bundled Python runtime and drops mise, bun and MinGit', () => {
+  it('keeps uv/uvx/rg and the MinGit shell for Pi, and drops mise, bun and the rest of MinGit', () => {
     const binaries = 'resources/binaries/win32-x64'
-    for (const file of ['mise.exe', 'mise-shim.exe', 'bun.exe', 'git/cmd/git.exe']) {
+    for (const file of ['mise.exe', 'mise-shim.exe', 'bun.exe', 'git/cmd/git.exe', 'git/mingw64/bin/git.exe']) {
       expect(includesFile(`${binaries}/${file}`), file).toBe(false)
     }
     // Python 供给由 uv 提供，删掉它等于砍掉内置 Python 运行时。
     for (const file of ['uv.exe', 'uvx.exe', 'rg.exe']) {
+      expect(includesFile(`${binaries}/${file}`), file).toBe(true)
+    }
+    // Pi 在 Windows 上必须有一个 bash；MinGit 的 usr/bin/sh.exe 就是 GNU bash 并自带 coreutils。
+    for (const file of ['git/usr/bin/sh.exe', 'git/usr/bin/ls.exe', 'git/usr/bin/msys-2.0.dll']) {
       expect(includesFile(`${binaries}/${file}`), file).toBe(true)
     }
   })

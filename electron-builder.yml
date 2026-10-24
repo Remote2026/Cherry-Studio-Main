@@ -86,7 +86,10 @@ files:
   - "!resources/binaries/*/mise.exe" # DSH 工具链自动安装（内网取不到源）
   - "!resources/binaries/*/mise-shim.exe"
   - "!resources/binaries/*/bun.exe" # DSH 小程序/工具运行时
-  - "!resources/binaries/*/git/**" # 内置 MinGit（技能仓库等 git 功能）
+  # MinGit 只保留 shell 运行时：Pi 智能体在 Windows 上必须有一个 bash，而 usr/bin/sh.exe
+  # 就是 GNU bash 并自带 coreutils；git 本体（mingw64/、cmd/）约 68 MB，内网用不上。
+  - "!resources/binaries/*/git/mingw64/**"
+  - "!resources/binaries/*/git/cmd/**"
   - "!**/node_modules/@anthropic-ai/claude-agent-sdk*/**" # Claude Code 智能体：原生 CLI 与包 JS 一并去掉
   - "!**/node_modules/@esbuild/win32-arm64/**" # 非目标架构
   - "!**/node_modules/@paymoapp/electron-shutdown-handler/prebuilds/win32-arm64/**"
@@ -157,6 +160,12 @@ win:
   signExts:
     - .node
   verifyUpdateCodeSignature: false
+msi:
+  # 内网统一分发：按机器安装到 Program Files（需管理员），支持 msiexec /qn 静默安装。
+  perMachine: true
+  oneClick: true
+  shortcutName: ${productName}
+  artifactName: ${productName}-${version}-${arch}.${ext}
 nsis:
   # Preserve the existing global installer identity so either edition replaces the same Windows installation.
   guid: 41a4ccd8-bcc0-5710-9eee-0e164da68057

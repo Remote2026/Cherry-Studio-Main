@@ -3,7 +3,7 @@ import path from 'path'
 
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { getBundledGitDir, getBundledGitPath } from '../bundledGit'
+import { getBundledGitBashPath, getBundledGitDir, getBundledGitPath } from '../bundledGit'
 
 // Force the Windows code path regardless of host so both branches run everywhere.
 vi.mock('@main/core/platform', () => ({ isWin: true }))
@@ -53,6 +53,29 @@ describe('bundledGit', () => {
       vi.mocked(fs.existsSync).mockReturnValue(false)
 
       expect(getBundledGitDir()).toBeNull()
+    })
+  })
+
+  describe('getBundledGitBashPath', () => {
+    const bashExe = ['/mock/app.root.resources.binaries', platformKey, 'git', 'bin', 'bash.exe'].join('\\')
+    const shExe = ['/mock/app.root.resources.binaries', platformKey, 'git', 'usr', 'bin', 'sh.exe'].join('\\')
+
+    it('prefers the full Git for Windows bash.exe when present', () => {
+      vi.mocked(fs.existsSync).mockImplementation((p) => p === bashExe || p === shExe)
+
+      expect(getBundledGitBashPath()).toBe(bashExe)
+    })
+
+    it('falls back to MinGit usr/bin/sh.exe, which is GNU bash', () => {
+      vi.mocked(fs.existsSync).mockImplementation((p) => p === shExe)
+
+      expect(getBundledGitBashPath()).toBe(shExe)
+    })
+
+    it('returns null when the bundled shell is absent', () => {
+      vi.mocked(fs.existsSync).mockReturnValue(false)
+
+      expect(getBundledGitBashPath()).toBeNull()
     })
   })
 })
