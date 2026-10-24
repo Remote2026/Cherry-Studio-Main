@@ -9,7 +9,11 @@ import { agentSessionMessageTable } from '@data/db/schemas/agentSessionMessage'
 import { agentWorkspaceTable } from '@data/db/schemas/agentWorkspace'
 import { appStateTable } from '@data/db/schemas/appState'
 import { promptBindingTable, promptTable } from '@data/db/schemas/prompt'
-import { BusinessBidSeeder, BUSINESS_BID_AGENT_ID } from '@data/db/seeding/seeders/businessBidSeeder'
+import {
+  BusinessBidSeeder,
+  BUSINESS_BID_AGENT_ID,
+  BUSINESS_BID_PREVIOUS_PROMPT_CONTENT
+} from '@data/db/seeding/seeders/businessBidSeeder'
 import { agentService } from '@data/services/AgentService'
 import { promptService } from '@data/services/PromptService'
 import { generateOrderKeyBetween } from '@data/services/utils/orderKey'
@@ -31,7 +35,7 @@ describe('BusinessBidSeeder', () => {
   it('uses a stable seeder identity', () => {
     const seeder = new BusinessBidSeeder()
     expect(seeder.name).toBe('businessBid')
-    expect(seeder.version).toBe('1')
+    expect(seeder.version).toBe('2')
     expect(seeder.executionPolicy).toBe('run-on-change')
     expect(seeder.description).toBeTruthy()
   })
@@ -86,9 +90,20 @@ describe('BusinessBidSeeder', () => {
       title: '生成商务标书',
       visibility: 'restricted'
     })
-    expect(prompt.content.startsWith('任务：根据招标文件分析报告生成商务投标文件 HTML')).toBe(true)
+    expect(prompt.content.startsWith('# 任务：基于招标文件分析报告生成商务投标文件 HTML')).toBe(true)
     expect(prompt.content).toContain('{项目名}-商务标书-待补充事项清单.html')
     expect(dbh.db.select().from(promptBindingTable).all()).toHaveLength(1)
+  })
+
+  it('upgrades an untouched seeded prompt to the current content', () => {
+    new BusinessBidSeeder().run(dbh.db)
+    const [seeded] = promptService.listBoundToTarget({ type: 'agent', id: BUSINESS_BID_AGENT_ID })
+    promptService.update(seeded.id, { content: BUSINESS_BID_PREVIOUS_PROMPT_CONTENT })
+
+    new BusinessBidSeeder().run(dbh.db)
+
+    const [prompt] = promptService.listBoundToTarget({ type: 'agent', id: BUSINESS_BID_AGENT_ID })
+    expect(prompt.content.startsWith('# 任务：基于招标文件分析报告生成商务投标文件 HTML')).toBe(true)
   })
 
   it('is idempotent across repeated runs', () => {

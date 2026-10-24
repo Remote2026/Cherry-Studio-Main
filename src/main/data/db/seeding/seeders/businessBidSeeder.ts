@@ -1,8 +1,9 @@
-import { eq } from 'drizzle-orm'
+import { and, eq } from 'drizzle-orm'
 import { v4 as uuidv4 } from 'uuid'
 
 import { agentTable } from '@data/db/schemas/agent'
 import { appStateTable } from '@data/db/schemas/appState'
+import { promptBindingTable, promptTable } from '@data/db/schemas/prompt'
 import { agentService } from '@data/services/AgentService'
 import { agentSessionService } from '@data/services/AgentSessionService'
 import { promptService } from '@data/services/PromptService'
@@ -14,7 +15,8 @@ import type { DbType, ISeeder } from '../../types'
 export const BUSINESS_BID_AGENT_ID = 'business-bid'
 const INSTALL_MARKER_KEY = 'seed:businessBid:installed'
 
-const BUSINESS_BID_PROMPT_CONTENT = `任务：根据招标文件分析报告生成商务投标文件 HTML
+// v1 发布的默认值；仅用于识别未被用户修改的存量安装并升级。
+export const BUSINESS_BID_PREVIOUS_PROMPT_CONTENT = `任务：根据招标文件分析报告生成商务投标文件 HTML
 一、输入与输出
 读取当前项目目录中的以下文件：
 
@@ -117,6 +119,125 @@ const BUSINESS_BID_PROMPT_CONTENT = `任务：根据招标文件分析报告生�
 
 优先由文档处理程序完成 DOCX 解析、HTML 生成、文件写入和实际分页；由模型完成语义理解、内容填充和材料匹配。不得仅通过生成文字声称已完成文件操作或格式校验。`
 
+const BUSINESS_BID_PROMPT_CONTENT = `# 任务：基于招标文件分析报告生成商务投标文件 HTML
+
+## 一、输入与输出
+
+输入文件：
+
+1. \`{项目名}-商务标书.docx\`：商务标书原始模板。
+2. \`{项目名}-招标文件分析报告.html\`：已完成的招标要求分析报告。
+3. 企业知识库：企业基本信息、资质证书、业绩、人员、财务及其他证明材料。
+
+输出文件：
+
+- \`{项目名}-商务标书.html\`
+- \`{项目名}-商务标书-待补充事项清单.html\`
+
+以招标文件分析报告作为招标要求的依据，不再重复分析原始招标文件。
+
+## 二、执行流程
+
+### 步骤 1：检查输入并读取资料
+
+检查模板、分析报告及企业知识库是否存在且可读取。
+
+- 缺少模板或分析报告时，提示用户提供对应文件。
+- 企业知识库缺失或无有效资料时，提示用户配置知识库。
+- 分析报告内容不完整、文件解析失败或资料存在冲突时，记录问题，不得自行假定。
+
+读取分析报告中的项目基本信息、资格性审查要求、符合性审查要求、商务评分标准及其他商务要求。
+
+读取企业知识库中的相关资料，建立企业信息与证明材料清单。
+
+前置条件不满足时，停止正式生成并报告原因。
+
+### 步骤 2：转换模板并填充内容
+
+将 DOCX 模板转换为 HTML，尽可能保留原有章节顺序、正文、编号、表格结构、合并单元格、图片、页眉页脚、字体、段落格式、签章位置及分页设置。
+
+原模板是结构和版式基准，不得无故删除或改写固定内容，不得擅自合并、拆分表格或删除可能影响投标资格、评分及合同响应的条款。
+
+按照分析报告和企业真实资料，完成以下内容：
+
+1. **资格性和符合性审查索引表**：按分析报告中的原始顺序逐项填写审查要求、应答内容、对应证明材料及实际页码。
+2. **商务评分标准索引表**：按原始顺序填写评分项目、评分条件、分值、应答说明、证明材料及实际页码。
+3. **其他章节及表格**：填写投标人基本信息、资格证明、声明函、合同应答、人员及财务资料、业绩、售后服务和其他商务内容。
+
+优先复用模板已有章节和附件。根据实际招标要求确定需要填写的内容，不得仅因模板存在某个附件，就认定其为必填项或评分项。
+
+### 步骤 3：匹配和组织证明材料
+
+根据审查要求和评分标准，将应答内容与企业已有资料、证明材料逐项匹配，并将相关材料组织到模板对应章节或文件末尾的附件章节。
+
+遵守以下规则：
+
+- 仅使用分析报告和企业资料中有依据的信息。
+- 不得虚构企业信息、资质、业绩、人员、财务数据、证书或承诺。
+- 不得声称企业已经满足某项要求或获得某项评分，除非有充分依据。
+- 同一份材料可以支持多个项目，但必须记录对应关系。
+- 优先复用已有材料，避免重复创建相同附件。
+- 对需要签字、盖章或提供原件的内容，保留明确的占位说明。
+
+缺失信息使用以下标记：
+
+- \`【待补充：材料名称】\`
+- \`【待补充：字段名称】\`
+- \`【待确认：具体事项】\`
+
+不得擅自决定联合体、代理商等条件选项；日期、金额、交付期限、质保期及其他承诺必须有明确依据。
+
+### 步骤 4：生成分页并校验
+
+完成内容填充和附件编排后，更新目录、章节页码及两类索引表页码。
+
+通过实际打印或 PDF 分页结果核对页码，不得直接沿用原 DOCX 页码或凭空填写页码。
+
+检查以下事项：
+
+1. 原有章节、表格、图片、合并单元格及签章位置是否保留。
+2. 资格性、符合性审查项目及商务评分项目是否全部映射。
+3. 每项索引是否对应正确的应答内容和证明材料。
+4. 页码是否能定位到实际材料。
+5. 项目名称、编号、企业信息及其他已知信息是否前后一致。
+6. 待补充、待确认事项是否全部记录。
+7. HTML 能否正常打开，打印版是否存在明显的内容溢出、表格截断或分页异常。
+
+无法实际验证的页码、格式或内容，不得声称校验通过，必须标记为未验证。
+
+### 步骤 5：输出文件和执行报告
+
+生成商务标书 HTML 和待补充事项清单 HTML。
+
+待补充事项清单至少包括：
+
+- 缺失的企业资料及证明材料。
+- 待补充字段和待确认事项。
+- 需要签字、盖章或提供原件的内容。
+- 未映射的审查要求或评分项目。
+- 页码、格式及其他校验失败项。
+- 尚未完成或无法验证的任务。
+
+最终报告必须包含：
+
+- 输入文件读取结果。
+- 已处理的章节和表格。
+- 资格性、符合性审查项目总数、已映射数和未映射数。
+- 商务评分项目总数、已映射数和未映射数。
+- 待补充及待确认事项数量。
+- 页码、格式和内容校验结果。
+- 两个输出文件的实际路径。
+
+所有统计必须依据实际处理结果，不得将未执行、未完成或未验证的工作报告为已完成。
+
+## 三、执行原则
+
+1. 按步骤顺序执行，前一步完成并检查后再进入下一步。
+2. 优先使用文档处理程序完成 DOCX 解析、HTML 生成、文件写入和实际分页；使用模型完成语义理解、内容填充和材料匹配。
+3. 不得以生成文字代替实际文件操作，不得声称完成了未经执行的校验。
+4. 发现错误时优先修复对应问题；无法修复时记录原因，并在待补充事项清单中列明。
+5. 始终以招标文件分析报告和企业真实资料为依据，确保内容可追溯、缺失项可识别、校验结果可核实。`
+
 const BUSINESS_BID_INSTRUCTIONS = `# 角色
 
 你是专业的商务投标文件编制 Agent，负责依据商务标书模板、招标文件分析报告及投标人提供的真实资料，生成完整、准确、可追溯的商务投标文件 HTML。
@@ -179,7 +300,7 @@ export class BusinessBidSeeder implements ISeeder {
   readonly name = 'businessBid'
   readonly description = 'Insert the built-in business bid document agent and its editable user prompt'
   readonly executionPolicy = 'run-on-change' as const
-  readonly version = '1'
+  readonly version = '2'
 
   run(db: DbType): void {
     db.transaction((tx) => {
@@ -192,6 +313,7 @@ export class BusinessBidSeeder implements ISeeder {
       if (existing.length > 0) {
         // 补写安装标记，避免后续版本把用户已删除的智能体重建出来。
         this.ensureInstallMarkerTx(tx)
+        this.upgradeUserPromptTx(tx)
         return
       }
       if (this.hasInstallMarkerTx(tx)) return
@@ -223,6 +345,23 @@ export class BusinessBidSeeder implements ISeeder {
 
       this.ensureInstallMarkerTx(tx)
     })
+  }
+
+  // 只升级仍绑定在本智能体上、且标题和内容都未被用户修改过的种子提示词。
+  private upgradeUserPromptTx(tx: Pick<DbType, 'select' | 'update'>): void {
+    const prompts = tx
+      .select({ id: promptTable.id, title: promptTable.title, content: promptTable.content })
+      .from(promptBindingTable)
+      .innerJoin(promptTable, eq(promptBindingTable.promptId, promptTable.id))
+      .where(and(eq(promptBindingTable.targetType, 'agent'), eq(promptBindingTable.targetId, BUSINESS_BID_AGENT_ID)))
+      .all()
+    for (const prompt of prompts) {
+      const isUntouchedSeedPrompt =
+        prompt.title === BUSINESS_BID_SEED.prompt.title &&
+        (prompt.content === BUSINESS_BID_PREVIOUS_PROMPT_CONTENT || prompt.content === BUSINESS_BID_PROMPT_CONTENT)
+      if (!isUntouchedSeedPrompt) continue
+      tx.update(promptTable).set({ content: BUSINESS_BID_PROMPT_CONTENT }).where(eq(promptTable.id, prompt.id)).run()
+    }
   }
 
   private hasInstallMarkerTx(tx: Pick<DbType, 'select'>): boolean {
