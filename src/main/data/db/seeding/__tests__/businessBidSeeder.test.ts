@@ -35,7 +35,7 @@ describe('BusinessBidSeeder', () => {
   it('uses a stable seeder identity', () => {
     const seeder = new BusinessBidSeeder()
     expect(seeder.name).toBe('businessBid')
-    expect(seeder.version).toBe('2')
+    expect(seeder.version).toBe('3')
     expect(seeder.executionPolicy).toBe('run-on-change')
     expect(seeder.description).toBeTruthy()
   })
@@ -54,7 +54,7 @@ describe('BusinessBidSeeder', () => {
     expect(agent.instructions.startsWith('# 角色')).toBe(true)
     expect(agent.instructions).toContain('你是专业的商务投标文件编制 Agent')
     expect(agent.configuration).toMatchObject({
-      avatar: '📑',
+      avatar: '🍆',
       permission_mode: 'bypassPermissions',
       bootstrap_completed: true,
       env_vars: {}
@@ -104,6 +104,46 @@ describe('BusinessBidSeeder', () => {
 
     const [prompt] = promptService.listBoundToTarget({ type: 'agent', id: BUSINESS_BID_AGENT_ID })
     expect(prompt.content.startsWith('# 任务：基于招标文件分析报告生成商务投标文件 HTML')).toBe(true)
+  })
+
+  it('upgrades the avatar of an unmodified install', () => {
+    dbh.db
+      .insert(agentTable)
+      .values({
+        id: BUSINESS_BID_AGENT_ID,
+        type: 'pi',
+        name: '生成商务标书',
+        description: '',
+        instructions: '',
+        configuration: { avatar: '📑', custom: true },
+        orderKey: generateOrderKeyBetween(null, null)
+      })
+      .run()
+
+    new BusinessBidSeeder().run(dbh.db)
+
+    const [agent] = dbh.db.select().from(agentTable).where(eq(agentTable.id, BUSINESS_BID_AGENT_ID)).all()
+    expect(agent.configuration).toMatchObject({ avatar: '🍆', custom: true })
+  })
+
+  it('keeps a user-customized avatar', () => {
+    dbh.db
+      .insert(agentTable)
+      .values({
+        id: BUSINESS_BID_AGENT_ID,
+        type: 'pi',
+        name: '生成商务标书',
+        description: '',
+        instructions: '',
+        configuration: { avatar: '🥝' },
+        orderKey: generateOrderKeyBetween(null, null)
+      })
+      .run()
+
+    new BusinessBidSeeder().run(dbh.db)
+
+    const [agent] = dbh.db.select().from(agentTable).where(eq(agentTable.id, BUSINESS_BID_AGENT_ID)).all()
+    expect(agent.configuration).toMatchObject({ avatar: '🥝' })
   })
 
   it('is idempotent across repeated runs', () => {

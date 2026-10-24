@@ -21,6 +21,7 @@ const PREVIOUS_INSTRUCTIONS = '你是标书顾问'
 const PREVIOUS_DESCRIPTION = '分析招标文件，生成 HTML 格式的分析问卷'
 const PREVIOUS_PROMPT_TITLE = '生成分析问卷'
 const PREVIOUS_PROMPT_CONTENT = '分析项目招标文件，生成html格式的分析问卷'
+const PREVIOUS_AVATAR = '📋'
 
 const BID_ANALYSIS_PROMPT_CONTENT = `请分析本次上传的招标文件，严格按照系统提示词规定的工作流程、风险识别规则和报告结构完成分析。
 
@@ -547,7 +548,7 @@ const BID_ANALYSIS_SEED = {
     content: BID_ANALYSIS_PROMPT_CONTENT
   },
   configuration: {
-    avatar: '📋',
+    avatar: '🍆',
     permission_mode: 'bypassPermissions',
     bootstrap_completed: true,
     env_vars: {}
@@ -558,7 +559,7 @@ export class BidAnalysisSeeder implements ISeeder {
   readonly name = 'bidAnalysis'
   readonly description = 'Insert the built-in bid analysis agent and its editable user prompt'
   readonly executionPolicy = 'run-on-change' as const
-  readonly version = '5'
+  readonly version = '6'
 
   run(db: DbType): void {
     db.transaction((tx) => {
@@ -567,7 +568,8 @@ export class BidAnalysisSeeder implements ISeeder {
           id: agentTable.id,
           name: agentTable.name,
           description: agentTable.description,
-          instructions: agentTable.instructions
+          instructions: agentTable.instructions,
+          configuration: agentTable.configuration
         })
         .from(agentTable)
         .where(eq(agentTable.id, BID_ANALYSIS_AGENT_ID))
@@ -587,6 +589,9 @@ export class BidAnalysisSeeder implements ISeeder {
         }
         if (existing[0].instructions === PREVIOUS_INSTRUCTIONS) {
           upgrades.instructions = BID_ANALYSIS_INSTRUCTIONS
+        }
+        if (existing[0].configuration?.avatar === PREVIOUS_AVATAR) {
+          upgrades.configuration = { ...existing[0].configuration, avatar: BID_ANALYSIS_SEED.configuration.avatar }
         }
         if (Object.keys(upgrades).length > 0) {
           tx.update(agentTable).set(upgrades).where(eq(agentTable.id, BID_ANALYSIS_AGENT_ID)).run()

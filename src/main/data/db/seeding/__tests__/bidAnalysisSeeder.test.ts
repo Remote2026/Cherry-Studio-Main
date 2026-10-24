@@ -31,7 +31,7 @@ describe('BidAnalysisSeeder', () => {
   it('uses a stable seeder identity', () => {
     const seeder = new BidAnalysisSeeder()
     expect(seeder.name).toBe('bidAnalysis')
-    expect(seeder.version).toBe('5')
+    expect(seeder.version).toBe('6')
     expect(seeder.executionPolicy).toBe('run-on-change')
     expect(seeder.description).toBeTruthy()
   })
@@ -50,7 +50,7 @@ describe('BidAnalysisSeeder', () => {
     expect(agent.instructions.startsWith('# 角色定义')).toBe(true)
     expect(agent.instructions).toContain('你是一名资深投标顾问和招标采购文件分析专家')
     expect(agent.configuration).toMatchObject({
-      avatar: '📋',
+      avatar: '🍆',
       permission_mode: 'bypassPermissions',
       bootstrap_completed: true,
       env_vars: {}
@@ -138,6 +138,46 @@ describe('BidAnalysisSeeder', () => {
     const [prompt] = promptService.listBoundToTarget({ type: 'agent', id: BID_ANALYSIS_AGENT_ID })
     expect(prompt.title).toBe('生成分析报告')
     expect(prompt.content.startsWith('请分析本次上传的招标文件')).toBe(true)
+  })
+
+  it('upgrades the avatar of an unmodified install', () => {
+    dbh.db
+      .insert(agentTable)
+      .values({
+        id: BID_ANALYSIS_AGENT_ID,
+        type: 'pi',
+        name: '我的分析助手',
+        description: '自定义描述',
+        instructions: '自定义提示词',
+        configuration: { avatar: '📋', custom: true },
+        orderKey: generateOrderKeyBetween(null, null)
+      })
+      .run()
+
+    new BidAnalysisSeeder().run(dbh.db)
+
+    const [agent] = dbh.db.select().from(agentTable).where(eq(agentTable.id, BID_ANALYSIS_AGENT_ID)).all()
+    expect(agent.configuration).toMatchObject({ avatar: '🍆', custom: true })
+  })
+
+  it('keeps a user-customized avatar', () => {
+    dbh.db
+      .insert(agentTable)
+      .values({
+        id: BID_ANALYSIS_AGENT_ID,
+        type: 'pi',
+        name: '我的分析助手',
+        description: '自定义描述',
+        instructions: '自定义提示词',
+        configuration: { avatar: '🦄' },
+        orderKey: generateOrderKeyBetween(null, null)
+      })
+      .run()
+
+    new BidAnalysisSeeder().run(dbh.db)
+
+    const [agent] = dbh.db.select().from(agentTable).where(eq(agentTable.id, BID_ANALYSIS_AGENT_ID)).all()
+    expect(agent.configuration).toMatchObject({ avatar: '🦄' })
   })
 
   it('is idempotent across repeated runs', () => {

@@ -14,6 +14,7 @@ import type { DbType, ISeeder } from '../../types'
 
 export const BUSINESS_BID_AGENT_ID = 'business-bid'
 const INSTALL_MARKER_KEY = 'seed:businessBid:installed'
+const PREVIOUS_AVATAR = '📑'
 
 // v1 发布的默认值；仅用于识别未被用户修改的存量安装并升级。
 export const BUSINESS_BID_PREVIOUS_PROMPT_CONTENT = `任务：根据招标文件分析报告生成商务投标文件 HTML
@@ -289,7 +290,7 @@ const BUSINESS_BID_SEED = {
     content: BUSINESS_BID_PROMPT_CONTENT
   },
   configuration: {
-    avatar: '📑',
+    avatar: '🍆',
     permission_mode: 'bypassPermissions',
     bootstrap_completed: true,
     env_vars: {}
@@ -300,12 +301,12 @@ export class BusinessBidSeeder implements ISeeder {
   readonly name = 'businessBid'
   readonly description = 'Insert the built-in business bid document agent and its editable user prompt'
   readonly executionPolicy = 'run-on-change' as const
-  readonly version = '2'
+  readonly version = '3'
 
   run(db: DbType): void {
     db.transaction((tx) => {
       const existing = tx
-        .select({ id: agentTable.id })
+        .select({ id: agentTable.id, configuration: agentTable.configuration })
         .from(agentTable)
         .where(eq(agentTable.id, BUSINESS_BID_AGENT_ID))
         .limit(1)
@@ -313,6 +314,15 @@ export class BusinessBidSeeder implements ISeeder {
       if (existing.length > 0) {
         // 补写安装标记，避免后续版本把用户已删除的智能体重建出来。
         this.ensureInstallMarkerTx(tx)
+        // 只升级仍是旧版默认值的头像；用户改过的一律保留。
+        if (existing[0].configuration?.avatar === PREVIOUS_AVATAR) {
+          tx.update(agentTable)
+            .set({
+              configuration: { ...existing[0].configuration, avatar: BUSINESS_BID_SEED.configuration.avatar }
+            })
+            .where(eq(agentTable.id, BUSINESS_BID_AGENT_ID))
+            .run()
+        }
         this.upgradeUserPromptTx(tx)
         return
       }
