@@ -69,6 +69,11 @@ const CodeEditor = ({
   }, [options])
 
   const initialContent = useRef(options?.stream ? (value ?? '').trimEnd() : (value ?? ''))
+  const editorCreatedRef = useRef(false)
+  // 视图创建前持续跟随最新 value，否则 view 就绪时 CodeMirror 会按挂载时的旧值回写文档。
+  if (!editorCreatedRef.current) {
+    initialContent.current = options?.stream ? (value ?? '').trimEnd() : (value ?? '')
+  }
   const editorViewRef = useRef<EditorView | null>(null)
   const shouldStickToBottomRef = useRef(true)
   const autoScrollToBottomRef = useRef(autoScrollToBottom)
@@ -199,6 +204,7 @@ const CodeEditor = ({
       extensions={customExtensions}
       onCreateEditor={(view: EditorView) => {
         scrollCleanupRef.current?.()
+        editorCreatedRef.current = true
         editorViewRef.current = view
         onHeightChange?.(view.scrollDOM?.scrollHeight ?? 0)
         const scrollElement = view.scrollDOM
