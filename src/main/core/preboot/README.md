@@ -104,6 +104,8 @@ preboot/
 │                        second instances. Runs after userData resolution so
 │                        dev instances with different profile roots or
 │                        userData suffixes use isolated locks.
+├── usageWindow.ts       intranet usage window (2026–2027); shows an error and
+│                        exits during preboot once the local year reaches 2028.
 ├── userDataLocation.ts  resolves userData (dev profile root, suffix, or
 │                        BootConfig) and exports the shared isUsableDataDir(p) validator
 │                        used by v1→v2 migration
