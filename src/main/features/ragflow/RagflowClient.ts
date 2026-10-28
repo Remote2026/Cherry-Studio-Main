@@ -42,7 +42,8 @@ export class RagflowClientError extends Error {
  */
 const envelopeSchema = z.object({
   code: z.number(),
-  message: z.string().optional(),
+  // 1.0 无消息时回 "message": null，旧版是字符串或缺省。
+  message: z.string().nullish(),
   data: z.unknown().optional()
 })
 
@@ -55,7 +56,8 @@ const datasetPayloadSchema = z.object({
   embedding_model: z.string().nullish(),
   similarity_threshold: z.number().nullish(),
   vector_similarity_weight: z.number().nullish(),
-  create_time: z.number(),
+  // 1.0 的数据集列表不再返回 create_time，只在数据集详情里给。
+  create_time: z.number().nullish(),
   update_time: z.number()
 })
 
@@ -65,7 +67,9 @@ const documentPayloadSchema = z.object({
   size: z.number().int().min(0).optional(),
   chunk_count: z.number().int().min(0).optional(),
   token_count: z.number().int().min(0).optional(),
-  run: z.string(),
+  // 1.0 的文档列表用 ingestion_status 表达解析状态，不再返回 run。
+  run: z.string().nullish(),
+  ingestion_status: z.string().nullish(),
   progress: z.number().optional(),
   suffix: z.string().optional(),
   create_time: z.number(),
@@ -73,18 +77,26 @@ const documentPayloadSchema = z.object({
 })
 
 /** List-chunks reports the document name as `docnm_kwd`; retrieval as `document_keyword`. */
-const chunkPayloadSchema = z.object({
-  id: z.string(),
-  content: z.string(),
-  document_id: z.string(),
-  docnm_kwd: z.string().optional(),
-  document_keyword: z.string().optional(),
-  available: z.boolean().optional(),
-  similarity: z.number().optional(),
-  vector_similarity: z.number().optional(),
-  term_similarity: z.number().optional(),
-  highlight: z.string().optional()
-})
+// 1.0 的 chunk 列表给的是引擎原始字段：chunk_id / content_with_weight，且不带 document_id。
+const chunkPayloadSchema = z
+  .object({
+    id: z.string().nullish(),
+    chunk_id: z.string().nullish(),
+    content: z.string().nullish(),
+    content_with_weight: z.string().nullish(),
+    document_id: z.string().nullish(),
+    docnm_kwd: z.string().optional(),
+    document_keyword: z.string().optional(),
+    available: z.boolean().optional(),
+    similarity: z.number().optional(),
+    vector_similarity: z.number().optional(),
+    term_similarity: z.number().optional(),
+    highlight: z.string().optional()
+  })
+  .refine((chunk) => (chunk.id ?? chunk.chunk_id) !== undefined, { message: 'chunk id is missing' })
+  .refine((chunk) => (chunk.content ?? chunk.content_with_weight) !== undefined, {
+    message: 'chunk content is missing'
+  })
 
 const datasetsResponseSchema = z.object({
   data: z.array(datasetPayloadSchema),
@@ -112,9 +124,26 @@ const RUN_STATES_BY_CODE: Record<string, RagflowRunState> = {
   '4': 'FAIL'
 }
 
-const toRunState = (run: string): RagflowRunState => {
-  const upper = run.toUpperCase()
-  return RUN_STATES_BY_CODE[upper] ?? (upper as RagflowRunState)
+// 1.0 把解析状态搬到 ingestion_status，词汇表也从 DONE/FAIL 变成 COMPLETED/FAILED 等。
+const RUN_STATES_BY_WORD: Record<string, RagflowRunState> = {
+  UNSTART: 'UNSTART',
+  CREATED: 'UNSTART',
+  SCHEDULED: 'UNSTART',
+  RUNNING: 'RUNNING',
+  STOPPING: 'RUNNING',
+  STOPPED: 'CANCEL',
+  COMPLETED: 'DONE',
+  DONE: 'DONE',
+  FAILED: 'FAIL',
+  FAIL: 'FAIL',
+  CANCEL: 'CANCEL',
+  CANCELED: 'CANCEL'
+}
+
+const toRunState = (run: string | null | undefined, ingestionStatus: string | null | undefined): RagflowRunState => {
+  const legacy = run?.toUpperCase()
+  if (legacy) return RUN_STATES_BY_CODE[legacy] ?? RUN_STATES_BY_WORD[legacy] ?? 'UNSTART'
+  return RUN_STATES_BY_WORD[ingestionStatus?.toUpperCase() ?? ''] ?? 'UNSTART'
 }
 
 const toIsoTime = (epochMs: number): string => new Date(epochMs).toISOString()
@@ -128,7 +157,8 @@ const toDataset = (payload: z.infer<typeof datasetPayloadSchema>): RagflowDatase
   embeddingModel: payload.embedding_model ?? '',
   similarityThreshold: payload.similarity_threshold ?? DEFAULT_SIMILARITY_THRESHOLD,
   vectorSimilarityWeight: payload.vector_similarity_weight ?? DEFAULT_VECTOR_SIMILARITY_WEIGHT,
-  createdAt: toIsoTime(payload.create_time),
+  // 列表缺 create_time 时用 update_time 兜底。
+  createdAt: toIsoTime(payload.create_time ?? payload.update_time),
   updatedAt: toIsoTime(payload.update_time)
 })
 
@@ -138,25 +168,26 @@ const toDocument = (payload: z.infer<typeof documentPayloadSchema>): RagflowDocu
   size: payload.size ?? 0,
   chunkCount: payload.chunk_count ?? 0,
   tokenCount: payload.token_count ?? 0,
-  run: toRunState(payload.run),
+  run: toRunState(payload.run, payload.ingestion_status),
   progress: payload.progress ?? 0,
   suffix: payload.suffix ?? '',
   createdAt: toIsoTime(payload.create_time),
   updatedAt: toIsoTime(payload.update_time)
 })
 
-const toChunk = (payload: z.infer<typeof chunkPayloadSchema>): RagflowChunk => ({
-  id: payload.id,
-  content: payload.content,
-  documentId: payload.document_id,
+const toChunk = (payload: z.infer<typeof chunkPayloadSchema>, documentId: string): RagflowChunk => ({
+  id: payload.id ?? payload.chunk_id ?? '',
+  content: payload.content ?? payload.content_with_weight ?? '',
+  // 1.0 的 chunk 列表不带 document_id，按请求的文档回填。
+  documentId: payload.document_id ?? documentId,
   documentName: payload.docnm_kwd ?? payload.document_keyword ?? '',
   available: payload.available ?? true
 })
 
 const toRetrievalHit = (payload: z.infer<typeof chunkPayloadSchema>): RagflowRetrievalHit => ({
-  chunkId: payload.id,
-  content: payload.content,
-  documentId: payload.document_id,
+  chunkId: payload.id ?? payload.chunk_id ?? '',
+  content: payload.content ?? payload.content_with_weight ?? '',
+  documentId: payload.document_id ?? '',
   documentName: payload.docnm_kwd ?? payload.document_keyword ?? '',
   similarity: payload.similarity ?? 0,
   vectorSimilarity: payload.vector_similarity ?? 0,
@@ -235,7 +266,10 @@ export class RagflowClient {
     const query = buildQuery({ page: input.page, page_size: input.pageSize, keywords: input.keywords })
     const path = `/api/v1/datasets/${encodeURIComponent(input.datasetId)}/documents/${encodeURIComponent(input.documentId)}/chunks${query}`
     const payload = await this.request('GET', path, chunksResponseSchema)
-    return { items: payload.data.chunks.map(toChunk), total: payload.data.total ?? payload.data.chunks.length }
+    return {
+      items: payload.data.chunks.map((chunk) => toChunk(chunk, input.documentId)),
+      total: payload.data.total ?? payload.data.chunks.length
+    }
   }
 
   async retrieve(input: RetrieveInput): Promise<{ items: RagflowRetrievalHit[]; total: number }> {

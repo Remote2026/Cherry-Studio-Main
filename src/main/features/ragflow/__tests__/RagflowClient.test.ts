@@ -212,6 +212,16 @@ describe('RagflowClient.listDatasets', () => {
     await expect(ragflowClient.listDatasets()).resolves.toMatchObject({ total: 1 })
     expect(fetchUrl()).toBe(`${API_URL}/api/v1/datasets`)
   })
+
+  it('accepts the 1.0 list row that omits create_time', async () => {
+    fetchMock.mockResolvedValueOnce(
+      Response.json({ code: 0, data: [{ ...DATASET_PAYLOAD, create_time: undefined }], total_datasets: 1 })
+    )
+
+    const { items } = await ragflowClient.listDatasets()
+
+    expect(items[0].createdAt).toBe(new Date(DATASET_PAYLOAD.update_time).toISOString())
+  })
 })
 
 describe('RagflowClient.listDocuments', () => {
@@ -249,6 +259,24 @@ describe('RagflowClient.listDocuments', () => {
 
     expect(items[0].run).toBe(expected)
   })
+
+  it.each([
+    ['COMPLETED', 'DONE'],
+    ['FAILED', 'FAIL'],
+    ['RUNNING', 'RUNNING'],
+    ['UNSTART', 'UNSTART']
+  ])('reads the 1.0 ingestion status %s as %s', async (ingestionStatus, expected) => {
+    fetchMock.mockResolvedValueOnce(
+      Response.json({
+        code: 0,
+        data: { docs: [{ ...DOCUMENT_PAYLOAD, run: undefined, ingestion_status: ingestionStatus }], total: 1 }
+      })
+    )
+
+    const { items } = await ragflowClient.listDocuments({ datasetId: 'ds-1' })
+
+    expect(items[0].run).toBe(expected)
+  })
 })
 
 describe('RagflowClient.listChunks', () => {
@@ -270,9 +298,44 @@ describe('RagflowClient.listChunks', () => {
       }
     ])
   })
+
+  it('accepts the raw engine rows of a 1.0 chunk list', async () => {
+    const rawChunk = {
+      _index: 'ragflow_tenant',
+      available: true,
+      chunk_id: '321dcf760c3cf1e5',
+      content_with_weight: 'The bidder shall submit two sealed envelopes.',
+      doc_type_kwd: 'image',
+      docnm_kwd: 'bid.docx',
+      image_id: ''
+    }
+    fetchMock.mockResolvedValueOnce(Response.json({ code: 0, data: { chunks: [rawChunk], total: 1 } }))
+
+    const { items } = await ragflowClient.listChunks({ datasetId: 'ds-1', documentId: 'doc-1' })
+
+    expect(items).toEqual([
+      {
+        id: '321dcf760c3cf1e5',
+        content: 'The bidder shall submit two sealed envelopes.',
+        documentId: 'doc-1',
+        documentName: 'bid.docx',
+        available: true
+      }
+    ])
+  })
 })
 
 describe('RagflowClient.retrieve', () => {
+  it('accepts the null message in a 1.0 success envelope', async () => {
+    fetchMock.mockResolvedValueOnce(
+      Response.json({ code: 0, data: { chunks: [RETRIEVAL_CHUNK_PAYLOAD] }, message: null })
+    )
+
+    const { items } = await ragflowClient.retrieve({ question: 'q', datasetIds: ['ds-1'] })
+
+    expect(items[0].chunkId).toBe('6f91590e5e582332')
+  })
+
   it('posts the retrieval body in RagFlow terms and returns similarity-ranked hits', async () => {
     fetchMock.mockResolvedValueOnce(
       Response.json({
