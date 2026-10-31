@@ -796,16 +796,16 @@ export class BinaryManager extends BaseService {
         const versionPath = path.join(bundledDir, tool.versionFile)
         const bundledVersion = this.readVersionMarker(versionPath)
         if (!bundledVersion) {
-          logger.error(`Expected bundled ${tool.name} version marker missing`, new Error(`Missing ${versionPath}`))
+          logger.warn(`Expected bundled ${tool.name} version marker missing`, { path: versionPath })
           continue
         }
 
         const missingBundled = binaries.filter((bin) => !fs.existsSync(path.join(bundledDir, bin)))
         if (missingBundled.length > 0) {
-          logger.error(
-            `Expected bundled ${tool.name} binaries missing`,
-            new Error(`Missing ${missingBundled.join(', ')} in ${bundledDir}`)
-          )
+          logger.warn(`Expected bundled ${tool.name} binaries missing`, {
+            missing: missingBundled.join(', '),
+            bundledDir
+          })
           continue
         }
 
