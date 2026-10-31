@@ -56,6 +56,7 @@ vi.mock('@renderer/ipc', () => ({
 describe('ErrorDiagnosisService', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockIpcRequest.mockResolvedValue(true)
     mockGetDiagnosisModel.mockResolvedValue({
       id: CHERRYAI_DEFAULT_UNIQUE_MODEL_ID,
       name: 'Qwen',
@@ -146,7 +147,14 @@ describe('ErrorDiagnosisService', () => {
       )
       expect(mockFetchGenerate).not.toHaveBeenCalledWith(expect.objectContaining({ model: defaultModel }))
       expect(mockReadDefaultModel).not.toHaveBeenCalled()
-      expect(mockIpcRequest).not.toHaveBeenCalled()
+      expect(mockIpcRequest).toHaveBeenCalledWith('ai.cherryai.configured')
+    })
+
+    it('does not call the free model when CherryAI is not configured', async () => {
+      mockIpcRequest.mockResolvedValue(false)
+
+      await expect(diagnoseError(makeError(), 'en')).rejects.toThrow('Free diagnosis model is unavailable')
+      expect(mockFetchGenerate).not.toHaveBeenCalled()
     })
 
     it('does not fall back when persisted Qwen is missing', async () => {
@@ -492,6 +500,13 @@ describe('ErrorDiagnosisService', () => {
   })
 
   describe('classifyErrorByAI', () => {
+    it('returns empty without calling the model when CherryAI is not configured', async () => {
+      mockIpcRequest.mockResolvedValue(false)
+
+      await expect(classifyErrorByAI(makeError(), 'en')).resolves.toBe('')
+      expect(mockFetchGenerate).not.toHaveBeenCalled()
+    })
+
     it('returns an empty result instead of falling back when free Qwen fails', async () => {
       mockFetchGenerate.mockRejectedValue(new Error('network unavailable'))
 

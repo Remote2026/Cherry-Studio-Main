@@ -122,4 +122,16 @@ describe('SignatureClient', () => {
       'CherryAI client secret is not configured'
     )
   })
+
+  it('reports whether the build client secret is configured', async () => {
+    vi.stubEnv('MAIN_VITE_CHERRYAI_CLIENT_SECRET', 'test-secret')
+    vi.resetModules()
+    const configured = await import('../cherryai')
+    expect(configured.isCherryAiConfigured()).toBe(true)
+
+    vi.stubEnv('MAIN_VITE_CHERRYAI_CLIENT_SECRET', '')
+    vi.resetModules()
+    const missing = await import('../cherryai')
+    expect(missing.isCherryAiConfigured()).toBe(false)
+  })
 })

@@ -239,6 +239,8 @@ export const aiRequestSchemas = {
     }),
     output: z.object({ latency: z.number() })
   }),
+  // 内网/自构建包可能没有 CherryAI client secret；免费错误诊断据此决定是否发请求。
+  'ai.cherryai.configured': defineRoute({ input: z.void(), output: z.boolean() }),
 
   // ── Streaming chat (AiStreamManager) ──
   // Requests are R→M; the produced chunk/done/error events ride the AiEventSchemas block below.

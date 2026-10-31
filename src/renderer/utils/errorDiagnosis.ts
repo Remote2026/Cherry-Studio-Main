@@ -1,6 +1,7 @@
 import { dataApiService } from '@data/DataApiService'
 import { loggerService } from '@logger'
 import i18n from '@renderer/i18n/resolver'
+import { ipcApi } from '@renderer/ipc'
 import type { SerializedError } from '@renderer/types/error'
 import { fetchGenerate } from '@renderer/utils/aiGeneration'
 import { CHERRYAI_DEFAULT_UNIQUE_MODEL_ID } from '@shared/data/presets/cherryai'
@@ -26,6 +27,15 @@ async function getCherryAiDefaultFreeModel(): Promise<Model> {
     throw new Error(`Diagnosis model not found: ${CHERRYAI_DEFAULT_UNIQUE_MODEL_ID}`)
   }
   return model
+}
+
+/** 内网/自构建包没有 CherryAI secret 时，不要发请求，避免每次报错都刷错误日志。 */
+async function isCherryAiDiagnosisAvailable(): Promise<boolean> {
+  try {
+    return await ipcApi.request('ai.cherryai.configured')
+  } catch {
+    return false
+  }
 }
 
 function buildContextHint(errorInfo: Record<string, unknown>, context?: DiagnosisContext): string {
@@ -183,6 +193,11 @@ export async function diagnoseError(
   language: string,
   context?: DiagnosisContext
 ): Promise<DiagnosisResult> {
+  if (!(await isCherryAiDiagnosisAvailable())) {
+    logger.debug('Free diagnosis model is not configured; skipping AI diagnosis')
+    throw new Error(i18n.t('error.diagnosis.free_model_unavailable'))
+  }
+
   const errorBag = error as Record<string, unknown>
   const errorInfo: Record<string, unknown> = {
     name: error.name,
@@ -288,6 +303,11 @@ The examples above demonstrate structure only. Write all four diagnosis fields i
  * Returns a one-line summary in the user's language, or empty string on failure.
  */
 export async function classifyErrorByAI(error: SerializedError, language: string): Promise<string> {
+  if (!(await isCherryAiDiagnosisAvailable())) {
+    logger.debug('Free diagnosis model is not configured; skipping AI classification')
+    return ''
+  }
+
   const prompt = `You are an error diagnosis assistant for Cherry Studio. Summarize this error in one sentence (max 30 words) in ${language}. Return ONLY the summary text, no JSON, no markdown, no quotes.`
   const content = `Error: ${error.name}: ${error.message}`
 

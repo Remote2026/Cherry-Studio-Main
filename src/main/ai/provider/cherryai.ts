@@ -10,6 +10,11 @@ const CLIENT_SECRET = import.meta.env.MAIN_VITE_CHERRYAI_CLIENT_SECRET
 const CLIENT_ID = 'cherry-studio'
 const CLIENT_SECRET_SUFFIX = 'GvI6I5ZrEHcGOWjO5AKhJKGmnwwGfM62XKpWqkjhvzRU2NZIinM77aTGIqhqys0g'
 
+/** 内网/自构建包可能没有注入 CherryAI secret，依赖它的免费诊断应直接跳过。 */
+export function isCherryAiConfigured(): boolean {
+  return Boolean(CLIENT_SECRET)
+}
+
 function getClientSecret(): string {
   if (!CLIENT_SECRET) {
     throw new Error('CherryAI client secret is not configured')

@@ -11,6 +11,7 @@ import { createBuiltinSkillSession } from '@main/ai/agents/createBuiltinSkillSes
 import { createBuiltinSupportSession } from '@main/ai/agents/createBuiltinSupportSession'
 import { buildAgentSessionTopicId } from '@main/ai/agentSession/topic'
 import { findPersistedToolOutput } from '@main/ai/messages/persistedToolOutput'
+import { isCherryAiConfigured } from '@main/ai/provider/cherryai'
 import { AgentSessionForkError } from '@main/ai/runtime/fork'
 import { AiStreamAdmissionError, type MainDispatchRequest, WebContentsListener } from '@main/ai/streamManager'
 import { serializeError } from '@main/ai/utils/serializeError'
@@ -154,6 +155,7 @@ export const aiHandlers: IpcHandlersFor<typeof aiRequestSchemas> = {
     exposeAiError('ai.provider.model.list', () => application.get('AiService').listModels(request)),
   'ai.provider.model.check': (request) =>
     exposeAiError('ai.provider.model.check', () => application.get('AiService').checkModel(request)),
+  'ai.cherryai.configured': async () => isCherryAiConfigured(),
 
   // ── Streaming chat — delegate to AiStreamManager, which owns the stream registry. ──
   'ai.stream.open': async (request, { senderId }) => {
