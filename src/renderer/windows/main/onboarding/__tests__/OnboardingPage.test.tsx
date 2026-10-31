@@ -403,7 +403,7 @@ describe('OnboardingPage', () => {
     dataApiMocks.get.mockImplementation(async (path: string) => {
       if (path === '/assistants') {
         return {
-          items: [{ id: 'assistant-1', modelId: CHERRYAI_DEFAULT_UNIQUE_MODEL_ID }],
+          items: [{ id: 'assistant-1', modelId: seededAgentModel }],
           total: 1
         }
       }

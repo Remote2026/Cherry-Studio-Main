@@ -129,7 +129,7 @@ export default function OnboardingPage() {
         .get('/assistants', { query: { limit: 2 } })
         .then(async ({ items, total }) => {
           const assistant = total === 1 ? items[0] : undefined
-          if (assistant?.modelId === CHERRYAI_DEFAULT_UNIQUE_MODEL_ID) {
+          if (assistant && (assistant.modelId === CHERRYAI_DEFAULT_UNIQUE_MODEL_ID || assistant.modelId === null)) {
             await dataApiService.patch(`/assistants/${assistant.id}`, { body: { modelId: model.id } })
           }
         })

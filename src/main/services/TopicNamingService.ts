@@ -5,6 +5,7 @@ import { providerService } from '@data/services/ProviderService'
 import { topicService } from '@data/services/TopicService'
 import { loggerService } from '@logger'
 import type { AiGenerateRequest, AsInProcessChat } from '@main/ai/AiService'
+import { isCherryAiConfigured } from '@main/ai/provider/cherryai'
 import { WindowType } from '@main/core/window/types'
 import { messageService } from '@main/data/services/MessageService'
 import { getAppLanguage } from '@main/i18n'
@@ -208,6 +209,7 @@ export class TopicNamingService {
       ]
 
       const uniqueModelId = this.resolveNamingModelId()
+      if (!uniqueModelId) return
       const title = await this.generateSummaryTitle(
         uniqueModelId,
         topicId,
@@ -305,6 +307,7 @@ export class TopicNamingService {
       if (session.isNameManuallyEdited) return
       if (!canAutoRenameAgentSessionName(session.name, userText)) return
       const uniqueModelId = this.resolveNamingModelId()
+      if (!uniqueModelId) return
 
       const structuredConversation: StructuredMessage[] = [
         { role: 'user', mainText: cleanMarkdownImages(userText) },
@@ -408,19 +411,26 @@ export class TopicNamingService {
     return (configuredPrompt || FALLBACK_PROMPT).replaceAll('{{language}}', language)
   }
 
-  private resolveNamingModelId(): UniqueModelId {
+  private resolveNamingModelId(): UniqueModelId | null {
     const preferenceService = application.get('PreferenceService')
 
     const configured =
       preferenceService.get('feature.quick_assistant.model_id') ?? preferenceService.get('chat.default_model_id')
     const quickModelId = this.toUsableNamingModelId(configured)
     if (quickModelId) return quickModelId
+
+    const cherryAiConfigured = isCherryAiConfigured()
     if (configured != null) {
-      logger.warn('Quick assistant model is not usable for topic naming; falling back to managed CherryAI default', {
-        configured
-      })
+      if (cherryAiConfigured) {
+        logger.warn('Quick assistant model is not usable for topic naming; falling back to managed CherryAI default', {
+          configured
+        })
+      } else {
+        logger.debug('No usable naming model and CherryAI is not configured; skipping auto title', { configured })
+      }
     }
 
+    if (!cherryAiConfigured) return null
     return CHERRYAI_DEFAULT_UNIQUE_MODEL_ID
   }
 

@@ -3,6 +3,17 @@ import { and, eq } from 'drizzle-orm'
 import { app } from 'electron'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import type * as CherryAiProviderModule from '@main/ai/provider/cherryai'
+
+const { mockIsCherryAiConfigured } = vi.hoisted(() => ({
+  mockIsCherryAiConfigured: vi.fn(() => true)
+}))
+
+vi.mock('@main/ai/provider/cherryai', async (importOriginal) => ({
+  ...(await importOriginal<typeof CherryAiProviderModule>()),
+  isCherryAiConfigured: mockIsCherryAiConfigured
+}))
+
 import { assistantTable } from '@data/db/schemas/assistant'
 import { messageTable } from '@data/db/schemas/message'
 import { preferenceTable } from '@data/db/schemas/preference'
@@ -26,6 +37,7 @@ describe('DefaultAssistantSeeder', () => {
   }
 
   beforeEach(() => {
+    mockIsCherryAiConfigured.mockReturnValue(true)
     vi.mocked(app.getLocale).mockReturnValue('en-US')
     vi.mocked(app.getPreferredSystemLanguages).mockReturnValue(['en-US'])
   })
@@ -82,6 +94,15 @@ describe('DefaultAssistantSeeder', () => {
       role: 'root',
       data: { parts: [] }
     })
+  })
+
+  it('leaves the default assistant model unset when CherryAI is not configured', async () => {
+    mockIsCherryAiConfigured.mockReturnValue(false)
+
+    new DefaultAssistantSeeder().run(dbh.db)
+
+    const [assistant] = await dbh.db.select().from(assistantTable).limit(1)
+    expect(assistant?.modelId).toBeNull()
   })
 
   it('seeds the default assistant with the Chinese name for Chinese app locales', async () => {

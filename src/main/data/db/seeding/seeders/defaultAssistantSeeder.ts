@@ -6,6 +6,7 @@ import { messageTable } from '@data/db/schemas/message'
 import { topicTable } from '@data/db/schemas/topic'
 import { messageService } from '@data/services/MessageService'
 import { insertWithOrderKey } from '@data/services/utils/orderKey'
+import { isCherryAiConfigured } from '@main/ai/provider/cherryai'
 import { DEFAULT_ASSISTANT_SEED, getDefaultAssistantNameForLocale } from '@shared/data/presets/defaultAssistant'
 
 import type { DbType, ISeeder } from '../../types'
@@ -34,6 +35,8 @@ export class DefaultAssistantSeeder implements ISeeder {
 
       const insertValues = {
         ...DEFAULT_ASSISTANT_SEED,
+        // 内网构建没有 CherryAI secret：留空，由引导流程或用户选择本地模型。
+        modelId: isCherryAiConfigured() ? DEFAULT_ASSISTANT_SEED.modelId : null,
         name: getDefaultAssistantNameForLocale(this.getPreferredSystemLanguage()),
         settings: { ...DEFAULT_ASSISTANT_SEED.settings }
       } satisfies Omit<typeof assistantTable.$inferInsert, 'orderKey'>

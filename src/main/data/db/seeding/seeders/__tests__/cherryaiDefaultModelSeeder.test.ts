@@ -1,8 +1,21 @@
 import { setupTestDatabase } from '@test-helpers/db'
 import { mockMainLoggerService } from '@test-mocks/MainLoggerService'
 import { and, eq } from 'drizzle-orm'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import type * as CherryAiProviderModule from '@main/ai/provider/cherryai'
+
+const { mockIsCherryAiConfigured } = vi.hoisted(() => ({
+  mockIsCherryAiConfigured: vi.fn(() => true)
+}))
+
+vi.mock('@main/ai/provider/cherryai', async (importOriginal) => ({
+  ...(await importOriginal<typeof CherryAiProviderModule>()),
+  isCherryAiConfigured: mockIsCherryAiConfigured
+}))
+
+import { agentTable } from '@data/db/schemas/agent'
+import { assistantTable } from '@data/db/schemas/assistant'
 import { preferenceTable } from '@data/db/schemas/preference'
 import { userModelTable } from '@data/db/schemas/userModel'
 import { userProviderTable } from '@data/db/schemas/userProvider'
@@ -20,6 +33,7 @@ import {
   CHERRYAI_DEFAULT_UNIQUE_MODEL_ID,
   CHERRYAI_PROVIDER_ID
 } from '@shared/data/presets/cherryai'
+import { DEFAULT_ASSISTANT_SETTINGS } from '@shared/data/types/assistant'
 import { ENDPOINT_TYPE } from '@shared/data/types/model'
 
 describe('CherryAiDefaultModelSeeder', () => {
@@ -27,6 +41,7 @@ describe('CherryAiDefaultModelSeeder', () => {
 
   beforeEach(() => {
     mockMainLoggerService.warn.mockClear()
+    mockIsCherryAiConfigured.mockReturnValue(true)
   })
 
   async function readPreferenceValue(key: string) {
@@ -157,6 +172,69 @@ describe('CherryAiDefaultModelSeeder', () => {
     for (const key of DEFAULT_MODEL_PREFERENCE_KEYS) {
       expect(await readPreferenceValue(key)).toBe('')
     }
+  })
+
+  it('hides the CherryAI model and clears its references when the client secret is missing', async () => {
+    mockIsCherryAiConfigured.mockReturnValue(true)
+    new CherryAiDefaultModelSeeder().run(dbh.db)
+    dbh.db.delete(assistantTable).run()
+    dbh.db.delete(agentTable).run()
+    dbh.db.delete(preferenceTable).run()
+    await dbh.db.insert(assistantTable).values({
+      name: 'Cherry Assistant',
+      emoji: '😀',
+      settings: DEFAULT_ASSISTANT_SETTINGS,
+      orderKey: generateOrderKeyBetween(null, null),
+      modelId: CHERRYAI_DEFAULT_UNIQUE_MODEL_ID
+    })
+    await dbh.db.insert(agentTable).values({
+      id: 'cherryai-agent',
+      type: 'pi',
+      name: 'CherryAI Agent',
+      description: '',
+      instructions: '',
+      orderKey: generateOrderKeyBetween(null, null),
+      model: CHERRYAI_DEFAULT_UNIQUE_MODEL_ID
+    })
+    await dbh.db.insert(preferenceTable).values(
+      DEFAULT_MODEL_PREFERENCE_KEYS.map((key) => ({
+        scope: 'default',
+        key,
+        value: CHERRYAI_DEFAULT_UNIQUE_MODEL_ID
+      }))
+    )
+
+    mockIsCherryAiConfigured.mockReturnValue(false)
+    new CherryAiDefaultModelSeeder().run(dbh.db)
+
+    const [model] = await dbh.db
+      .select()
+      .from(userModelTable)
+      .where(eq(userModelTable.id, CHERRYAI_DEFAULT_UNIQUE_MODEL_ID))
+      .limit(1)
+    const [assistant] = await dbh.db.select().from(assistantTable).limit(1)
+    const [agent] = await dbh.db.select().from(agentTable).limit(1)
+    expect(model).toMatchObject({ isEnabled: false, isHidden: true })
+    expect(assistant?.modelId).toBeNull()
+    expect(agent?.model).toBeNull()
+    for (const key of DEFAULT_MODEL_PREFERENCE_KEYS) {
+      expect(await readPreferenceValue(key)).toBeUndefined()
+    }
+  })
+
+  it('re-enables the CherryAI model when the client secret is configured', async () => {
+    mockIsCherryAiConfigured.mockReturnValue(false)
+    new CherryAiDefaultModelSeeder().run(dbh.db)
+
+    mockIsCherryAiConfigured.mockReturnValue(true)
+    new CherryAiDefaultModelSeeder().run(dbh.db)
+
+    const [model] = await dbh.db
+      .select()
+      .from(userModelTable)
+      .where(eq(userModelTable.id, CHERRYAI_DEFAULT_UNIQUE_MODEL_ID))
+      .limit(1)
+    expect(model).toMatchObject({ isEnabled: true, isHidden: false })
   })
 
   it('preserves an existing CherryAI provider row', async () => {

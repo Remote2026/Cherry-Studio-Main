@@ -6,6 +6,7 @@ import { mockMainLoggerService } from '@test-mocks/MainLoggerService'
 import { app } from 'electron'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import type * as CherryAiProviderModule from '@main/ai/provider/cherryai'
 import { WindowType } from '@main/core/window/types'
 import { CHERRYAI_DEFAULT_UNIQUE_MODEL_ID } from '@shared/data/presets/cherryai'
 
@@ -21,6 +22,15 @@ const mocks = vi.hoisted(() => ({
   getAgent: vi.fn(),
   getSession: vi.fn(),
   updateSession: vi.fn()
+}))
+
+const { mockIsCherryAiConfigured } = vi.hoisted(() => ({
+  mockIsCherryAiConfigured: vi.fn(() => true)
+}))
+
+vi.mock('@main/ai/provider/cherryai', async (importOriginal) => ({
+  ...(await importOriginal<typeof CherryAiProviderModule>()),
+  isCherryAiConfigured: mockIsCherryAiConfigured
 }))
 
 vi.mock('@application', async () => {
@@ -112,6 +122,7 @@ function mockRenameInputs() {
 describe('TopicNamingService', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockIsCherryAiConfigured.mockReturnValue(true)
     MockMainPreferenceServiceUtils.resetMocks()
     mockMainLoggerService.warn.mockClear()
     mockMainLoggerService.debug.mockClear()
@@ -221,6 +232,20 @@ describe('TopicNamingService', () => {
         uniqueModelId: CHERRYAI_DEFAULT_UNIQUE_MODEL_ID
       })
     )
+  })
+
+  it('skips auto naming instead of using CherryAI when it is not configured', async () => {
+    mockIsCherryAiConfigured.mockReturnValue(false)
+    MockMainPreferenceServiceUtils.setPreferenceValue('feature.quick_assistant.model_id', null)
+    MockMainPreferenceServiceUtils.setPreferenceValue('chat.default_model_id', null)
+
+    await createService().maybeRenameFromConversationSummary('topic-1', undefined, 'message-1', {
+      role: 'assistant',
+      parts: [{ type: 'text', text: 'Assistant response' }]
+    } as never)
+
+    expect(mocks.generateText).not.toHaveBeenCalled()
+    expect(mocks.updateTopic).not.toHaveBeenCalled()
   })
 
   it('falls back to the managed CherryAI default when the quick model preference is invalid', async () => {
