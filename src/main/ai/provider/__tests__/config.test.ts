@@ -31,11 +31,13 @@ const { resolveApiKeyMock, getAuthConfigMock, getByProviderIdMock } = vi.hoisted
   getAuthConfigMock: vi.fn<(providerId: string) => AuthConfig | null>(),
   getByProviderIdMock: vi.fn()
 }))
-const { buildCherryCloudProviderConfigMock, generateSignatureMock, getCopilotTokenMock } = vi.hoisted(() => ({
-  buildCherryCloudProviderConfigMock: vi.fn(),
-  generateSignatureMock: vi.fn(),
-  getCopilotTokenMock: vi.fn()
-}))
+const { buildCherryCloudProviderConfigMock, generateSignatureMock, isCherryAiConfiguredMock, getCopilotTokenMock } =
+  vi.hoisted(() => ({
+    buildCherryCloudProviderConfigMock: vi.fn(),
+    generateSignatureMock: vi.fn(),
+    isCherryAiConfiguredMock: vi.fn(),
+    getCopilotTokenMock: vi.fn()
+  }))
 
 vi.mock('@main/data/services/ProviderService', () => ({
   providerService: {
@@ -46,7 +48,8 @@ vi.mock('@main/data/services/ProviderService', () => ({
 }))
 
 vi.mock('@main/ai/provider/cherryai', () => ({
-  generateSignature: generateSignatureMock
+  generateSignature: generateSignatureMock,
+  isCherryAiConfigured: isCherryAiConfiguredMock
 }))
 
 vi.mock('@main/ai/provider/cherryCloud', () => ({
@@ -71,6 +74,7 @@ beforeEach(() => {
       : { attribution: 'explicit', id: 'test-key', masked: 'sk-t****-key' }
   }))
   getAuthConfigMock.mockReturnValue(null)
+  isCherryAiConfiguredMock.mockReturnValue(true)
   buildCherryCloudProviderConfigMock.mockReturnValue({
     providerId: 'anthropic',
     providerSettings: { baseURL: 'https://cloud.cherryai.com.cn/v1', apiKey: 'managed-session' }
@@ -1069,6 +1073,34 @@ describe('providerToAiSdkConfig — builder dispatch matrix', () => {
             'X-Signature': 'signed'
           })
         })
+      )
+    })
+
+    it('does not require CherryAI signing for an internal deployment without a client secret', async () => {
+      isCherryAiConfiguredMock.mockReturnValue(false)
+      const provider = makeProvider({
+        id: CHERRYAI_PROVIDER_ID,
+        presetProviderId: CHERRYAI_PROVIDER_ID,
+        endpointConfigs: {
+          [ENDPOINT_TYPE.OPENAI_CHAT_COMPLETIONS]: {
+            baseUrl: 'http://internal-llm.local/v1'
+          }
+        },
+        defaultChatEndpoint: ENDPOINT_TYPE.OPENAI_CHAT_COMPLETIONS
+      })
+      const model = makeModel({ providerId: CHERRYAI_PROVIDER_ID, name: 'internal-model' })
+      const config = await providerToAiSdkConfig(provider, model)
+      const requestInit = { method: 'POST', body: JSON.stringify({ model: 'internal-model' }) }
+
+      await (config.providerSettings as { fetch: typeof fetch }).fetch(
+        'http://internal-llm.local/v1/chat/completions',
+        requestInit
+      )
+
+      expect(generateSignatureMock).not.toHaveBeenCalled()
+      expect(net.fetch).toHaveBeenCalledWith(
+        'http://internal-llm.local/v1/chat/completions',
+        expect.objectContaining(requestInit)
       )
     })
   })

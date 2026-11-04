@@ -31,7 +31,7 @@ describe('BidAnalysisSeeder', () => {
   it('uses a stable seeder identity', () => {
     const seeder = new BidAnalysisSeeder()
     expect(seeder.name).toBe('bidAnalysis')
-    expect(seeder.version).toBe('6')
+    expect(seeder.version).toBe('11')
     expect(seeder.executionPolicy).toBe('run-on-change')
     expect(seeder.description).toBeTruthy()
   })
@@ -49,6 +49,10 @@ describe('BidAnalysisSeeder', () => {
     })
     expect(agent.instructions.startsWith('# 角色定义')).toBe(true)
     expect(agent.instructions).toContain('你是一名资深投标顾问和招标采购文件分析专家')
+    expect(agent.instructions).toContain('RagFlow 文档顺序读取')
+    expect(agent.instructions).toContain('mcp__cherry-tools__bid_read_chunks')
+    expect(agent.instructions).toContain('mcp__cherry-tools__bid_check_coverage')
+    expect(agent.instructions).toContain('[第N段｜第P页｜章节]')
     expect(agent.configuration).toMatchObject({
       avatar: '🍆',
       permission_mode: 'bypassPermissions',

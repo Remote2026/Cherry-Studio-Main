@@ -19,6 +19,8 @@ export const RagflowDatasetSchema = z.object({
   embeddingModel: z.string(),
   similarityThreshold: z.number(),
   vectorSimilarityWeight: z.number(),
+  /** rc2 返回 parser_id（如 general/book）；旧版可能是 chunk_method。 */
+  parserId: z.string().nullable().optional(),
   createdAt: z.iso.datetime(),
   updatedAt: z.iso.datetime()
 })
@@ -34,6 +36,10 @@ export const RagflowDocumentSchema = z.object({
   run: RagflowRunStateSchema,
   progress: z.number(),
   suffix: z.string(),
+  /** 文档 metadata，用于 fingerprint 去重。 */
+  metaFields: z.record(z.string(), z.unknown()).nullable().optional(),
+  progressMessage: z.string().nullable().optional(),
+  latestEventMessage: z.string().nullable().optional(),
   createdAt: z.iso.datetime(),
   updatedAt: z.iso.datetime()
 })
@@ -45,7 +51,11 @@ export const RagflowChunkSchema = z.object({
   content: z.string(),
   documentId: z.string(),
   documentName: z.string(),
-  available: z.boolean()
+  available: z.boolean(),
+  /** PDF 页码（来自 positions 的首个元素），DOCX 为空。 */
+  pages: z.array(z.number().int().positive()).optional(),
+  /** RagFlow 内容类型：text/table/image 等。 */
+  docType: z.string().nullable().optional()
 })
 export type RagflowChunk = z.infer<typeof RagflowChunkSchema>
 

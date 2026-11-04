@@ -52,6 +52,7 @@ import { AgentChatNavbar } from './components/AgentChatNavbar'
 import AgentCitationsPanel from './components/AgentCitationsPanel'
 import { type AgentFileNavigationRequest, AgentRightPane, AgentTaskProgressCapsule } from './components/AgentRightPane'
 import { ApiGatewayRequiredDialog } from './components/ApiGatewayRequiredDialog'
+import { BidAttachmentStatusCapsule } from './components/BidAttachmentStatusCapsule'
 import { locateAgentMessageInList } from './messages/agentMessageListAdapter'
 import type { CreateAgentSessionDefaults } from './types'
 import { type AgentChatRuntimeState, useAgentChatRuntimeState } from './useAgentChatRuntimeState'
@@ -627,6 +628,7 @@ const AgentChatSessionCenter = ({
 }: AgentChatSessionCenterProps) => {
   const composer = (
     <div className="flex w-full flex-col">
+      {!isMultiSelectMode && <BidAttachmentStatusCapsule sessionId={runtime.sessionId} />}
       {!isMultiSelectMode && <AgentTaskProgressCapsule />}
       <AgentComposerSlot
         editBusy={runtime.editBusy}

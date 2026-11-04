@@ -48,7 +48,7 @@ import {
   routeToEndpoint
 } from '../utils/provider'
 import { normalizeArkResponsesResponse, stripArkUnsupportedIncludes } from './ark'
-import { generateSignature } from './cherryai'
+import { generateSignature, isCherryAiConfigured } from './cherryai'
 import { buildCherryCloudProviderConfig } from './cherryCloud'
 import { buildCodexRequestHeaders, coerceCodexRequestBody } from './codex'
 import { COPILOT_DEFAULT_HEADERS } from './constants'
@@ -565,6 +565,8 @@ async function buildCherryAIConfig(ctx: BuilderContext): Promise<ProviderConfig<
       includeUsage: resolveEndpointDialect(ctx.actualProvider, ctx.endpointType).streamOptions,
       headers: { ...getProviderAppHeaders(ctx.actualProvider), ...getExtraHeaders(ctx.actualProvider) },
       fetch: async (input: RequestInfo | URL, init?: RequestInit) => {
+        if (!isCherryAiConfigured()) return customFetch(input, init)
+
         const signature = generateSignature({
           method: 'POST',
           path: '/chat/completions',

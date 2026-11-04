@@ -15,6 +15,7 @@ import {
   type KnowledgeItemStatus
 } from '@shared/data/types/knowledge'
 import type { RagflowDataset, RagflowDocument, RagflowRunState } from '@shared/ipc/schemas/ragflow'
+import { isVisibleRagflowDataset } from '@shared/utils/ragflow'
 
 import { RagflowClientError, ragflowClient } from './RagflowClient'
 
@@ -43,7 +44,8 @@ const fetchAllDatasets = async (): Promise<RagflowDataset[]> => {
   const datasets: RagflowDataset[] = []
   for (let page = 1; ; page += 1) {
     const { items } = await ragflowClient.listDatasets({ page, pageSize: PAGE_SIZE })
-    datasets.push(...items)
+    // TemporaryKB 是标书附件的内部库，不能导入知识库；用原始条数判断分页结束。
+    datasets.push(...items.filter(isVisibleRagflowDataset))
     if (items.length < PAGE_SIZE) return datasets
   }
 }

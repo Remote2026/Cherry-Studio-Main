@@ -49,6 +49,7 @@
 - [x] 展示文档名、内容片段、得分与来源元数据。
 - [x] 对 RagFlow 数据集隐藏本地 embedding、分块、索引与本地上传控件。
 - [x] 第一阶段 RagFlow 数据集管理保持只读，文档在 RagFlow 侧管理。
+  - 例外：标书分析附件会由主进程上传到 `TemporaryKB`（`parser_id=general`）；知识库 UI 的只读边界不变。
 
 ### 4. 聊天与助手集成
 

@@ -11,6 +11,7 @@ import type { AgentSessionContextUsage } from '../../ai/agentSessionContextUsage
 import type { AgentSessionFlowParts } from '../../ai/agentSessionFlowParts'
 import type { AgentSessionSlashCommand } from '../../ai/agentSessionSlashCommands'
 import type { AutonomousTurnOrigin } from '../../ai/agentSessionTurnOrigin'
+import type { BidAttachmentStatus } from '../../ai/bidAttachmentStatus'
 import type { McpServer } from '../types/mcpServer'
 import type { MiniApp } from '../types/miniApp'
 import type { UniqueModelId } from '../types/model'
@@ -199,6 +200,7 @@ export type CacheAgentSessionCompactionState = AgentSessionCompactionState | nul
 export type CacheAgentSessionApiRetryState = AgentSessionApiRetryState | null
 export type CacheAgentSessionSlashCommands = AgentSessionSlashCommand[] | null
 export type CacheAgentSessionBackgroundTasks = AgentSessionBackgroundTasks
+export type CacheBidAttachmentStatus = BidAttachmentStatus
 export type CacheAgentSessionTaskEvents = AgentSessionTaskEvents
 export type CacheAgentSessionFlowParts = AgentSessionFlowParts
 export type CacheAgentSessionTurnOrigin = AutonomousTurnOrigin | null

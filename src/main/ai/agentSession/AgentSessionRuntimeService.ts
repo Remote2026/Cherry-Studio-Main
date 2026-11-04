@@ -11,6 +11,7 @@ import { agentSessionService } from '@data/services/AgentSessionService'
 import { aiUsageRecordService, type SourceSnapshot } from '@data/services/AiUsageRecordService'
 import { loggerService } from '@logger'
 import { AgentSessionForkOperations } from '@main/ai/agentSession/fork'
+import { prepareBidDocumentMessage, withBidDocumentFailureNotes } from '@main/ai/messages/bidDocumentAttachments'
 import type { NotifyChannel } from '@main/ai/runtime/agentMcpServers'
 import type { RuntimeForkAnchor } from '@main/ai/runtime/fork'
 import { resolveKnowledgeBaseScope } from '@main/ai/utils/knowledgeScope'
@@ -2607,8 +2608,27 @@ export class AgentSessionRuntimeService extends BaseService {
     await this.refreshTurnTraceContext(entry, turn)
     const connection = this.currentConnection(entry)
     if (!connection) throw new Error('Agent runtime connection unavailable')
+
+    let messageForSend = turn.userMessage
+    try {
+      messageForSend = await prepareBidDocumentMessage({
+        agentId: entry.agentId,
+        sessionId: entry.sessionId,
+        workspacePath: agentSessionService.getById(entry.sessionId).workspace.path,
+        message: turn.userMessage,
+        signal: turn.abortController.signal
+      })
+    } catch (error) {
+      if (turn.abortController.signal.aborted) throw error
+      logger.warn(
+        'Agent document preprocessing failed; replacing the original attachments with failure notes',
+        error as Error
+      )
+      messageForSend = withBidDocumentFailureNotes(turn.userMessage, error)
+    }
+
     await connection.send({
-      message: turn.userMessage,
+      message: messageForSend,
       systemReminder: turn.systemReminder === true
     })
   }

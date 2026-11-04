@@ -5,11 +5,13 @@ import type * as LoggerModule from '../LoggerService'
 // `@logger` is globally mocked in renderer.setup.ts, and it resolves to the same
 // file as this relative import — so we must load the real module via importActual.
 let LoggerService: typeof LoggerModule.LoggerService
+let isBenignResizeObserverError: typeof LoggerModule.isBenignResizeObserverError
 let resolveWindowSourceFromMeta: typeof LoggerModule.resolveWindowSourceFromMeta
 
 beforeAll(async () => {
   const actual = await vi.importActual<typeof LoggerModule>('../LoggerService')
   LoggerService = actual.LoggerService
+  isBenignResizeObserverError = actual.isBenignResizeObserverError
   resolveWindowSourceFromMeta = actual.resolveWindowSourceFromMeta
 })
 
@@ -35,6 +37,17 @@ describe('resolveWindowSourceFromMeta', () => {
   it('trims surrounding whitespace and ignores blank content', () => {
     const doc = parseDocument('<head><meta name="logger-window-source" content="   " /></head>')
     expect(resolveWindowSourceFromMeta(doc)).toBe('')
+  })
+})
+
+describe('isBenignResizeObserverError', () => {
+  it('recognizes browser ResizeObserver loop notifications', () => {
+    expect(isBenignResizeObserverError('ResizeObserver loop completed with undelivered notifications.')).toBe(true)
+    expect(isBenignResizeObserverError('ResizeObserver loop limit exceeded')).toBe(true)
+  })
+
+  it('does not suppress other errors', () => {
+    expect(isBenignResizeObserverError('Uncaught TypeError')).toBe(false)
   })
 })
 

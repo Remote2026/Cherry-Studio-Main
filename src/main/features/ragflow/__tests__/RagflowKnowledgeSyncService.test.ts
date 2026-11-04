@@ -1,3 +1,5 @@
+import { randomUUID } from 'node:crypto'
+
 import { setupTestDatabase } from '@test-helpers/db'
 import { eq } from 'drizzle-orm'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -104,6 +106,41 @@ describe('RagflowKnowledgeSyncService', () => {
       status: 'completed',
       data: { source: 'doc-1.pdf' }
     })
+  })
+
+  it('hides TemporaryKB from imports and prunes an existing mirror without touching the remote dataset', async () => {
+    stubPaged(listDatasetsMock, [createDataset('ds-1', 'Handbook'), createDataset('temp', 'TemporaryKB')])
+    stubPaged(listDocumentsMock, [createDocument('doc-1')])
+
+    await ragflowKnowledgeSyncService.importDatasets(['ds-1'])
+    expect(mirrorBases().map((base) => base.remoteId)).not.toContain('temp')
+    await expect(ragflowKnowledgeSyncService.importDatasets(['temp'])).rejects.toThrow(/None of the selected/)
+
+    const tempBaseId = randomUUID()
+    dbh.db
+      .insert(knowledgeBaseTable)
+      .values({
+        id: tempBaseId,
+        name: 'TemporaryKB',
+        source: 'ragflow',
+        remoteId: 'temp',
+        groupId: null,
+        dimensions: null,
+        embeddingModelId: null,
+        status: 'completed',
+        error: null,
+        chunkSize: 1024,
+        chunkOverlap: 200,
+        chunkStrategy: 'structured',
+        chunkSeparator: '\\n\\n',
+        createdAt: 1,
+        updatedAt: 1
+      })
+      .run()
+
+    await ragflowKnowledgeSyncService.sync()
+
+    expect(mirrorBases().some((base) => base.remoteId === 'temp')).toBe(false)
   })
 
   it('rejects an import whose datasets no longer exist remotely', async () => {

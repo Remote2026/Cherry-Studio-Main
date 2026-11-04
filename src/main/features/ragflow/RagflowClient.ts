@@ -56,6 +56,9 @@ const datasetPayloadSchema = z.object({
   embedding_model: z.string().nullish(),
   similarity_threshold: z.number().nullish(),
   vector_similarity_weight: z.number().nullish(),
+  // rc2 返回 parser_id；旧版可能是 chunk_method。
+  parser_id: z.string().nullish(),
+  chunk_method: z.string().nullish(),
   // 1.0 的数据集列表不再返回 create_time，只在数据集详情里给。
   create_time: z.number().nullish(),
   update_time: z.number()
@@ -72,6 +75,9 @@ const documentPayloadSchema = z.object({
   ingestion_status: z.string().nullish(),
   progress: z.number().optional(),
   suffix: z.string().optional(),
+  meta_fields: z.record(z.string(), z.unknown()).nullish(),
+  progress_msg: z.string().nullish(),
+  latest_ingestion_event: z.object({ message: z.string().nullish() }).nullish(),
   create_time: z.number(),
   update_time: z.number()
 })
@@ -88,6 +94,10 @@ const chunkPayloadSchema = z
     docnm_kwd: z.string().optional(),
     document_keyword: z.string().optional(),
     available: z.boolean().optional(),
+    // PDF 位置：[[page, left, right, top, bottom], ...]。
+    positions: z.array(z.array(z.number())).nullish(),
+    position_int: z.array(z.array(z.number())).nullish(),
+    doc_type_kwd: z.union([z.string(), z.array(z.string())]).nullish(),
     similarity: z.number().optional(),
     vector_similarity: z.number().optional(),
     term_similarity: z.number().optional(),
@@ -115,6 +125,26 @@ const retrievalResponseSchema = z.object({
   data: z.object({ chunks: z.array(chunkPayloadSchema), total: z.number().int().min(0).optional() })
 })
 
+const createdDatasetResponseSchema = z.object({
+  data: z.object({ id: z.string(), name: z.string(), parser_id: z.string().nullish() })
+})
+
+const uploadedDocumentPayloadSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  size: z.number().int().min(0).optional(),
+  chunk_count: z.number().int().min(0).optional(),
+  token_count: z.number().int().min(0).optional(),
+  ingestion_status: z.string().nullish(),
+  parser_id: z.string().nullish()
+})
+
+const uploadDocumentsResponseSchema = z.object({
+  data: z.union([z.array(uploadedDocumentPayloadSchema), uploadedDocumentPayloadSchema])
+})
+
+const okResponseSchema = z.object({ data: z.unknown().optional() })
+
 // Older RagFlow builds report the run state as the numeric status code.
 const RUN_STATES_BY_CODE: Record<string, RagflowRunState> = {
   '0': 'UNSTART',
@@ -141,9 +171,10 @@ const RUN_STATES_BY_WORD: Record<string, RagflowRunState> = {
 }
 
 const toRunState = (run: string | null | undefined, ingestionStatus: string | null | undefined): RagflowRunState => {
+  const current = ingestionStatus?.toUpperCase()
+  if (current) return RUN_STATES_BY_WORD[current] ?? 'UNSTART'
   const legacy = run?.toUpperCase()
-  if (legacy) return RUN_STATES_BY_CODE[legacy] ?? RUN_STATES_BY_WORD[legacy] ?? 'UNSTART'
-  return RUN_STATES_BY_WORD[ingestionStatus?.toUpperCase() ?? ''] ?? 'UNSTART'
+  return legacy ? (RUN_STATES_BY_CODE[legacy] ?? RUN_STATES_BY_WORD[legacy] ?? 'UNSTART') : 'UNSTART'
 }
 
 const toIsoTime = (epochMs: number): string => new Date(epochMs).toISOString()
@@ -157,6 +188,7 @@ const toDataset = (payload: z.infer<typeof datasetPayloadSchema>): RagflowDatase
   embeddingModel: payload.embedding_model ?? '',
   similarityThreshold: payload.similarity_threshold ?? DEFAULT_SIMILARITY_THRESHOLD,
   vectorSimilarityWeight: payload.vector_similarity_weight ?? DEFAULT_VECTOR_SIMILARITY_WEIGHT,
+  parserId: payload.parser_id ?? payload.chunk_method ?? null,
   // 列表缺 create_time 时用 update_time 兜底。
   createdAt: toIsoTime(payload.create_time ?? payload.update_time),
   updatedAt: toIsoTime(payload.update_time)
@@ -171,18 +203,33 @@ const toDocument = (payload: z.infer<typeof documentPayloadSchema>): RagflowDocu
   run: toRunState(payload.run, payload.ingestion_status),
   progress: payload.progress ?? 0,
   suffix: payload.suffix ?? '',
+  metaFields: payload.meta_fields ?? null,
+  progressMessage: payload.progress_msg ?? null,
+  latestEventMessage: payload.latest_ingestion_event?.message ?? null,
   createdAt: toIsoTime(payload.create_time),
   updatedAt: toIsoTime(payload.update_time)
 })
 
-const toChunk = (payload: z.infer<typeof chunkPayloadSchema>, documentId: string): RagflowChunk => ({
-  id: payload.id ?? payload.chunk_id ?? '',
-  content: payload.content ?? payload.content_with_weight ?? '',
-  // 1.0 的 chunk 列表不带 document_id，按请求的文档回填。
-  documentId: payload.document_id ?? documentId,
-  documentName: payload.docnm_kwd ?? payload.document_keyword ?? '',
-  available: payload.available ?? true
-})
+const toChunk = (payload: z.infer<typeof chunkPayloadSchema>, documentId: string): RagflowChunk => {
+  const positions = payload.positions ?? payload.position_int ?? []
+  const pages = [
+    ...new Set(positions.map((position) => position[0]).filter((page) => Number.isFinite(page) && page > 0))
+  ]
+  const docType = Array.isArray(payload.doc_type_kwd)
+    ? (payload.doc_type_kwd[0] ?? null)
+    : (payload.doc_type_kwd ?? null)
+
+  return {
+    id: payload.id ?? payload.chunk_id ?? '',
+    content: payload.content ?? payload.content_with_weight ?? '',
+    // 1.0 的 chunk 列表不带 document_id，按请求的文档回填。
+    documentId: payload.document_id ?? documentId,
+    documentName: payload.docnm_kwd ?? payload.document_keyword ?? '',
+    available: payload.available ?? true,
+    ...(pages.length > 0 ? { pages } : {}),
+    ...(docType ? { docType } : {})
+  }
+}
 
 const toRetrievalHit = (payload: z.infer<typeof chunkPayloadSchema>): RagflowRetrievalHit => ({
   chunkId: payload.id ?? payload.chunk_id ?? '',
@@ -210,6 +257,7 @@ export type ListDatasetsInput = {
   page?: number
   pageSize?: number
   name?: string
+  signal?: AbortSignal
 }
 
 export type ListDocumentsInput = {
@@ -217,6 +265,57 @@ export type ListDocumentsInput = {
   page?: number
   pageSize?: number
   keywords?: string
+  id?: string
+  /** 按文档 metadata 过滤，例如 { fingerprint: '...' }。 */
+  metadata?: Record<string, string>
+  signal?: AbortSignal
+}
+
+export type CreateDatasetInput = {
+  name: string
+  /** 默认 general（PDF 走 DeepDOC；表格保留为 HTML chunk）。 */
+  parserId?: string
+  signal?: AbortSignal
+}
+
+export type CreatedDataset = {
+  id: string
+  name: string
+  parserId: string | null
+}
+
+export type UploadDocumentInput = {
+  datasetId: string
+  filename: string
+  content: Uint8Array
+  signal?: AbortSignal
+}
+
+export type UploadedDocument = {
+  id: string
+  name: string
+  size: number
+  chunkCount: number
+  tokenCount: number
+}
+
+export type UpdateDocumentMetadataInput = {
+  datasetId: string
+  documentId: string
+  metaFields: Record<string, string>
+  signal?: AbortSignal
+}
+
+export type StartParsingInput = {
+  datasetId: string
+  documentIds: string[]
+  signal?: AbortSignal
+}
+
+export type FindDocumentInput = {
+  datasetId: string
+  documentId: string
+  signal?: AbortSignal
 }
 
 export type ListChunksInput = {
@@ -225,6 +324,7 @@ export type ListChunksInput = {
   page?: number
   pageSize?: number
   keywords?: string
+  signal?: AbortSignal
 }
 
 export type RetrieveInput = {
@@ -238,6 +338,7 @@ export type RetrieveInput = {
   rerankId?: string
   keyword?: boolean
   highlight?: boolean
+  signal?: AbortSignal
 }
 
 export class RagflowClient {
@@ -248,24 +349,127 @@ export class RagflowClient {
 
   async listDatasets(input: ListDatasetsInput = {}): Promise<{ items: RagflowDataset[]; total: number }> {
     const query = buildQuery({ page: input.page, page_size: input.pageSize, name: input.name })
-    const payload = await this.request('GET', `/api/v1/datasets${query}`, datasetsResponseSchema)
+    const payload = await this.request('GET', `/api/v1/datasets${query}`, datasetsResponseSchema, undefined, {
+      signal: input.signal
+    })
     return { items: payload.data.map(toDataset), total: payload.total_datasets ?? payload.data.length }
   }
 
   async listDocuments(input: ListDocumentsInput): Promise<{ items: RagflowDocument[]; total: number }> {
-    const query = buildQuery({ page: input.page, page_size: input.pageSize, keywords: input.keywords })
+    const search = new URLSearchParams(
+      buildQuery({ page: input.page, page_size: input.pageSize, keywords: input.keywords, id: input.id })
+    )
+    for (const [key, value] of Object.entries(input.metadata ?? {})) {
+      search.set(`metadata[${key}]`, value)
+    }
+    const query = search.toString()
     const payload = await this.request(
       'GET',
-      `/api/v1/datasets/${encodeURIComponent(input.datasetId)}/documents${query}`,
-      documentsResponseSchema
+      `/api/v1/datasets/${encodeURIComponent(input.datasetId)}/documents${query ? `?${query}` : ''}`,
+      documentsResponseSchema,
+      undefined,
+      { signal: input.signal }
     )
     return { items: payload.data.docs.map(toDocument), total: payload.data.total ?? payload.data.docs.length }
+  }
+
+  /** 创建数据集；rc2 必须带 parse_type=1（BuiltIn）+ parser_id。 */
+  async createDataset(input: CreateDatasetInput): Promise<CreatedDataset> {
+    const payload = await this.request(
+      'POST',
+      '/api/v1/datasets',
+      createdDatasetResponseSchema,
+      { name: input.name, parse_type: 1, parser_id: input.parserId ?? 'general' },
+      { signal: input.signal }
+    )
+    return { id: payload.data.id, name: payload.data.name, parserId: payload.data.parser_id ?? null }
+  }
+
+  /** 上传本地文件；multipart 字段固定为 file。 */
+  async uploadDocument(input: UploadDocumentInput): Promise<UploadedDocument> {
+    // 复制到独立的 ArrayBuffer，避免 SharedArrayBuffer 形态不满足 BlobPart 类型。
+    const bytes = new Uint8Array(input.content.byteLength)
+    bytes.set(input.content)
+    const form = new FormData()
+    form.append('file', new Blob([bytes.buffer]), input.filename)
+    const payload = await this.request(
+      'POST',
+      `/api/v1/datasets/${encodeURIComponent(input.datasetId)}/documents?type=local`,
+      uploadDocumentsResponseSchema,
+      form,
+      { timeoutMs: 120_000, signal: input.signal }
+    )
+    const document = Array.isArray(payload.data) ? payload.data[0] : payload.data
+    if (!document) throw new RagflowClientError('MALFORMED_RESPONSE', 'RagFlow did not return the uploaded document')
+    return {
+      id: document.id,
+      name: document.name,
+      size: document.size ?? 0,
+      chunkCount: document.chunk_count ?? 0,
+      tokenCount: document.token_count ?? 0
+    }
+  }
+
+  /** 修正空数据集的解析器（TemporaryKB 必须是 general）。 */
+  async updateDatasetParser(input: { datasetId: string; parserId: string; signal?: AbortSignal }): Promise<void> {
+    await this.request(
+      'PUT',
+      `/api/v1/datasets/${encodeURIComponent(input.datasetId)}`,
+      okResponseSchema,
+      { parser_id: input.parserId, parse_type: 1 },
+      { signal: input.signal }
+    )
+  }
+
+  /** 替换文档 metadata（rc2 的 PATCH 会覆盖整个 meta_fields）。 */
+  async updateDocumentMetadata(input: UpdateDocumentMetadataInput): Promise<void> {
+    await this.request(
+      'PATCH',
+      `/api/v1/datasets/${encodeURIComponent(input.datasetId)}/documents/${encodeURIComponent(input.documentId)}`,
+      okResponseSchema,
+      { meta_fields: input.metaFields },
+      { signal: input.signal }
+    )
+  }
+
+  /** 触发异步解析；返回的 success_count 不在这里解释。 */
+  async startParsing(input: StartParsingInput): Promise<void> {
+    await this.request(
+      'POST',
+      `/api/v1/datasets/${encodeURIComponent(input.datasetId)}/documents/parse`,
+      okResponseSchema,
+      { document_ids: input.documentIds },
+      { timeoutMs: 30_000, signal: input.signal }
+    )
+  }
+
+  /** 按 id 精确定位文档；不存在返回 null。 */
+  async findDocument(input: FindDocumentInput): Promise<RagflowDocument | null> {
+    try {
+      const { items } = await this.listDocuments({
+        datasetId: input.datasetId,
+        id: input.documentId,
+        pageSize: 100,
+        signal: input.signal
+      })
+      return items.find((document) => document.id === input.documentId) ?? null
+    } catch (error) {
+      // rc2 对不存在/无权限的 id 返回 code 102 "you don't own the document ..."。
+      if (
+        error instanceof RagflowClientError &&
+        error.kind === 'REQUEST_FAILED' &&
+        /don't own|not found|does not exist/i.test(error.message)
+      ) {
+        return null
+      }
+      throw error
+    }
   }
 
   async listChunks(input: ListChunksInput): Promise<{ items: RagflowChunk[]; total: number }> {
     const query = buildQuery({ page: input.page, page_size: input.pageSize, keywords: input.keywords })
     const path = `/api/v1/datasets/${encodeURIComponent(input.datasetId)}/documents/${encodeURIComponent(input.documentId)}/chunks${query}`
-    const payload = await this.request('GET', path, chunksResponseSchema)
+    const payload = await this.request('GET', path, chunksResponseSchema, undefined, { signal: input.signal })
     return {
       items: payload.data.chunks.map((chunk) => toChunk(chunk, input.documentId)),
       total: payload.data.total ?? payload.data.chunks.length
@@ -285,7 +489,10 @@ export class RagflowClient {
       keyword: input.keyword,
       highlight: input.highlight
     }
-    const payload = await this.request('POST', '/api/v1/retrieval', retrievalResponseSchema, body)
+    const payload = await this.request('POST', '/api/v1/retrieval', retrievalResponseSchema, body, {
+      timeoutMs: 30_000,
+      signal: input.signal
+    })
     return { items: payload.data.chunks.map(toRetrievalHit), total: payload.data.total ?? payload.data.chunks.length }
   }
 
@@ -305,27 +512,32 @@ export class RagflowClient {
   }
 
   private async request<S extends z.ZodType>(
-    method: 'GET' | 'POST',
+    method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE',
     path: string,
     schema: S,
-    body?: Record<string, unknown>
+    body?: Record<string, unknown> | FormData,
+    options: { timeoutMs?: number; signal?: AbortSignal } = {}
   ): Promise<z.infer<S>> {
     const { apiKey, apiUrl } = this.getConfig()
+    const isFormData = body instanceof FormData
+    const timeout = AbortSignal.timeout(options.timeoutMs ?? RAGFLOW_REQUEST_TIMEOUT_MS)
+    const signal = options.signal ? AbortSignal.any([timeout, options.signal]) : timeout
     let response: Response
 
     try {
       response = await net.fetch(`${apiUrl}${path}`, {
-        body: body === undefined ? undefined : JSON.stringify(body),
+        body: body === undefined ? undefined : isFormData ? body : JSON.stringify(body),
         headers: {
           Accept: 'application/json',
           Authorization: `Bearer ${apiKey}`,
-          ...(body === undefined ? {} : { 'Content-Type': 'application/json' })
+          ...(body === undefined || isFormData ? {} : { 'Content-Type': 'application/json' })
         },
         method,
         redirect: 'manual',
-        signal: AbortSignal.timeout(RAGFLOW_REQUEST_TIMEOUT_MS)
+        signal
       })
-    } catch {
+    } catch (error) {
+      if (options.signal?.aborted) throw options.signal.reason ?? error
       throw new RagflowClientError('UNAVAILABLE', 'RagFlow service is unavailable')
     }
 

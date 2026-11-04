@@ -117,6 +117,26 @@ function textOf(result: Result): string {
 }
 
 describe('cherry-tools builtin tools', () => {
+  it('exposes the bid reading tools to every agent', async () => {
+    const bidClient = await connectMcpTestClient(() =>
+      createCherryToolsServer({
+        ...agentContext,
+        agentId: 'bid-analysis',
+        getKnowledgeAccess: () => ({ allKnowledgeBases: false, baseIds: KB_SCOPE })
+      })
+    )
+    clients.push(bidClient)
+    const bidTools = (await bidClient.listTools()).tools.map((tool) => tool.name)
+    expect(bidTools).toContain('bid_read_chunks')
+    expect(bidTools).toContain('bid_check_coverage')
+
+    const otherClient = await connectCherryTools()
+    clients.push(otherClient)
+    const otherTools = (await otherClient.listTools()).tools.map((tool) => tool.name)
+    expect(otherTools).toContain('bid_read_chunks')
+    expect(otherTools).toContain('bid_check_coverage')
+  })
+
   beforeEach(() => {
     searchKeywords.mockReset()
     fetchUrls.mockReset()

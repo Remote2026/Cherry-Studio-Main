@@ -21,6 +21,10 @@ const MAIN_LOG_LEVEL = LEVEL.WARN
 // `<meta name="logger-window-source" content="...">`. Keep this attribute name
 // in sync with those HTML files (see src/renderer/windows/README.md).
 const WINDOW_SOURCE_META_NAME = 'logger-window-source'
+const BENIGN_RESIZE_OBSERVER_ERRORS = new Set([
+  'ResizeObserver loop completed with undelivered notifications.',
+  'ResizeObserver loop limit exceeded'
+])
 
 /**
  * Read the window source declared by the `<meta name="logger-window-source">` tag.
@@ -33,6 +37,10 @@ const WINDOW_SOURCE_META_NAME = 'logger-window-source'
 export function resolveWindowSourceFromMeta(doc: Document | undefined): string {
   const meta = doc?.querySelector(`meta[name="${WINDOW_SOURCE_META_NAME}"]`)
   return meta?.getAttribute('content')?.trim() ?? ''
+}
+
+export function isBenignResizeObserverError(message: string): boolean {
+  return BENIGN_RESIZE_OBSERVER_ERRORS.has(message)
 }
 
 /**
@@ -327,6 +335,8 @@ export function installGlobalErrorLogging(): void {
   const logger = loggerService.withContext('GlobalError')
 
   window.addEventListener('error', (event) => {
+    if (isBenignResizeObserverError(event.message)) return
+
     // 资源加载失败也走 error 事件，但只有脚本错误才带 Error 对象。
     const error = event.error instanceof Error ? event.error : new Error(event.message || 'Unknown renderer error')
     logger.error('Uncaught error', error, { filename: event.filename, lineno: event.lineno, colno: event.colno })

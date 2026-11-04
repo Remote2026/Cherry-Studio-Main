@@ -11,6 +11,7 @@
  * approval is a security policy and belongs in the runtime-neutral approval layer.
  */
 
+import { BID_CHECK_COVERAGE_TOOL_NAME, BID_READ_CHUNKS_TOOL_NAME } from '@main/ai/bidDocument/documentHandle'
 import { CLI_INSTALL_TOOL_NAME, CLI_LIST_TOOL_NAME, CLI_SEARCH_TOOL_NAME } from '@main/ai/mcp/servers/cherryCliTools'
 import { MOVE_TO_TRASH_TOOL_NAME } from '@main/ai/tools/moveToTrash'
 import { SAVE_ATTACHMENT_TOOL_NAME } from '@main/ai/tools/saveAttachment'
@@ -98,6 +99,8 @@ const BUILTIN_TOOL_POLICIES = {
   cherryCliSearch: tool(CHERRY_MCP_SERVER.CHERRY_TOOLS, CLI_SEARCH_TOOL_NAME, 'auto'),
   cherryCliInstall: tool(CHERRY_MCP_SERVER.CHERRY_TOOLS, CLI_INSTALL_TOOL_NAME, 'required'),
   cherryToMarkdown: tool(CHERRY_MCP_SERVER.CHERRY_TOOLS, TO_MARKDOWN_TOOL_NAME, 'auto'),
+  cherryBidReadChunks: tool(CHERRY_MCP_SERVER.CHERRY_TOOLS, BID_READ_CHUNKS_TOOL_NAME, 'auto'),
+  cherryBidCheckCoverage: tool(CHERRY_MCP_SERVER.CHERRY_TOOLS, BID_CHECK_COVERAGE_TOOL_NAME, 'auto'),
   cherryGenerateImage: tool(CHERRY_MCP_SERVER.CHERRY_TOOLS, GENERATE_IMAGE_TOOL_NAME, 'required'),
 
   agentMemory: tool(CHERRY_MCP_SERVER.AGENT_MEMORY, 'memory', 'auto'),

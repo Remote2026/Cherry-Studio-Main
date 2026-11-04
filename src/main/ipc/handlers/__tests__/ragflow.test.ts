@@ -76,6 +76,21 @@ describe('ragflowHandlers', () => {
     expect(error).toMatchObject({ code: 'RAGFLOW_REQUEST_FAILED' })
   })
 
+  it('hides TemporaryKB from the import list', async () => {
+    listDatasetsMock.mockResolvedValueOnce({
+      items: [
+        { id: 'kb-temp', name: 'TemporaryKB' },
+        { id: 'kb-1', name: '企业库' }
+      ],
+      total: 2
+    })
+
+    const result = await ragflowHandlers['ragflow.list_datasets']({ page: 1 }, { senderId: 'w1' })
+
+    expect(result.items).toEqual([{ id: 'kb-1', name: '企业库' }])
+    expect(result.total).toBe(1)
+  })
+
   it('imports the datasets the caller selected', async () => {
     const input = { datasetIds: ['ds-1', 'ds-2'] }
     await expect(ragflowHandlers['ragflow.import_datasets'](input, { senderId: 'w1' })).resolves.toBeUndefined()

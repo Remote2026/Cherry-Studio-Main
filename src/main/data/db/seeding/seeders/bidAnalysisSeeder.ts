@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto'
+
 import { and, eq } from 'drizzle-orm'
 import { v4 as uuidv4 } from 'uuid'
 
@@ -22,6 +24,14 @@ const PREVIOUS_DESCRIPTION = '分析招标文件，生成 HTML 格式的分析�
 const PREVIOUS_PROMPT_TITLE = '生成分析问卷'
 const PREVIOUS_PROMPT_CONTENT = '分析项目招标文件，生成html格式的分析问卷'
 const PREVIOUS_AVATAR = '📋'
+/** v6-v9 默认 instructions 的 sha256；只用于识别“未被用户改过”的存量安装。 */
+const PREVIOUS_INSTRUCTIONS_V6_SHA256 = '3e7ccf1e8357e91dd16e65b6dd023c4fd9400148c3e05d6432347e928a6c2a5f'
+const PREVIOUS_INSTRUCTIONS_V7_SHA256 = 'ee07ffc29d10b32be67be58ae8e43c5cb4f67a59ba6910c5d5ceaf396dd4afdc'
+const PREVIOUS_INSTRUCTIONS_V8_SHA256 = '475b4f06dfede6803054d09e7e0944dba5d2dffacb38c128ed27653214733ce6'
+const PREVIOUS_INSTRUCTIONS_V9_SHA256 = 'ba19287fe5a9d95af9c032d54295b445626357c1e2b0b311f08125c81ea4ff4a'
+const PREVIOUS_INSTRUCTIONS_V10_SHA256 = '62edb602720619c37f7992da8fd68c756bb76daf77af4a751abbcee271be9aeb'
+
+const sha256 = (value: string): string => createHash('sha256').update(value, 'utf8').digest('hex')
 
 const BID_ANALYSIS_PROMPT_CONTENT = `请分析本次上传的招标文件，严格按照系统提示词规定的工作流程、风险识别规则和报告结构完成分析。
 
@@ -62,7 +72,7 @@ const BID_ANALYSIS_INSTRUCTIONS = `# 角色定义
 ## 1. 原文优先，结论必须有依据
 
 1. 所有重要结论必须能够追溯到招标文件原文。
-2. 重要结论应注明文件名称、章节或条款编号、PDF 页码、印刷页码及必要的原文摘录。
+2. 重要结论应注明文件名称、章节或条款编号、RagFlow 返回的 PDF 页码（如有）、印刷页码（如能确认）及必要的原文摘录。
 3. 原文摘录与分析结论必须分开，不得将模型的解释伪装成文件原文。
 4. 无法确认页码时标注“页码待核实”，不得猜测。
 5. 未找到明确条款时，标注“未检索到明确依据”，不得直接认定文件中不存在该条款。
@@ -132,6 +142,19 @@ const BID_ANALYSIS_INSTRUCTIONS = `# 角色定义
 发现缺页、附件缺失、文件损坏、扫描件识别失败、表格无法读取或版本关系不明时，应明确提示。不得将“未读取成功”当作“没有相关条款”。
 
 存在有效补遗或澄清文件时，应提取修改内容，说明修改前后差异及对投标的影响。
+
+## RagFlow 文档顺序读取（系统自动触发）
+
+当用户消息中出现“文档句柄”时，说明该附件已上传到 RagFlow 的 TemporaryKB 并由 General/DeepDOC 解析为有序分块，而不是一个可直接读取的普通文件。此时必须遵守：
+
+1. 禁止使用 read/bash 直接读取原文件；正文读取只能调用 mcp__cherry-tools__bid_read_chunks。
+2. 首次只传 docId 并省略 startIndex（从第 0 段开始）；之后每次把上一次返回的 nextIndex 原样作为 startIndex，直到 done=true。不得跳读。
+3. 工具返回 status="processing" 时，说明 RagFlow 仍在解析；不要执行 sleep/bash 等命令等待，直接再次调用同一工具和 docId/startIndex，不得在解析完成前编造内容。
+4. 每读完一批，立即把段号、页码/章节、条款编号、原文摘录、风险分类追加到工作区 bid-analysis-notes/<docId>.md；笔记是唯一可靠的长期记忆。
+5. 引用原文时使用段头给出的 [第N段｜第P页｜章节]；PDF 页码来自 RagFlow positions，DOCX 没有物理页码，不得编造；章节号以原文标题为准，无法识别时标注“章节待核实”，不得猜层级。
+6. 表格 chunk 可能以 HTML 形式返回，必须保留单元格/行列关系；凡涉及费率、分值、价格、保证金、份数、□/■ 勾选项、合并单元格的表格，必须回看原文核对，不得仅按分块文本的先后顺序推断；关键金额和分值必须复算并与原文交叉验证。
+7. 生成报告前必须调用 mcp__cherry-tools__bid_check_coverage；complete=false 或存在 gaps 时继续读取，不得声称已读完全文。coverage 只能证明已读到，不能替代对内容的理解。
+8. status="failed"、文档过期或不属于当前会话时，告知用户检查 RagFlow 或重新发送附件；不得声称已读取全部内容。
 
 # 三、招标文件分析工作流
 
@@ -559,7 +582,7 @@ export class BidAnalysisSeeder implements ISeeder {
   readonly name = 'bidAnalysis'
   readonly description = 'Insert the built-in bid analysis agent and its editable user prompt'
   readonly executionPolicy = 'run-on-change' as const
-  readonly version = '6'
+  readonly version = '11'
 
   run(db: DbType): void {
     db.transaction((tx) => {
@@ -587,7 +610,14 @@ export class BidAnalysisSeeder implements ISeeder {
         if (existing[0].description === PREVIOUS_DESCRIPTION) {
           upgrades.description = BID_ANALYSIS_SEED.description
         }
-        if (existing[0].instructions === PREVIOUS_INSTRUCTIONS) {
+        if (
+          existing[0].instructions === PREVIOUS_INSTRUCTIONS ||
+          sha256(existing[0].instructions) === PREVIOUS_INSTRUCTIONS_V6_SHA256 ||
+          sha256(existing[0].instructions) === PREVIOUS_INSTRUCTIONS_V7_SHA256 ||
+          sha256(existing[0].instructions) === PREVIOUS_INSTRUCTIONS_V8_SHA256 ||
+          sha256(existing[0].instructions) === PREVIOUS_INSTRUCTIONS_V9_SHA256 ||
+          sha256(existing[0].instructions) === PREVIOUS_INSTRUCTIONS_V10_SHA256
+        ) {
           upgrades.instructions = BID_ANALYSIS_INSTRUCTIONS
         }
         if (existing[0].configuration?.avatar === PREVIOUS_AVATAR) {

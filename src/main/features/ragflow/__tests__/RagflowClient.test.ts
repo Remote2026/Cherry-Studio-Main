@@ -200,6 +200,7 @@ describe('RagflowClient.listDatasets', () => {
         embeddingModel: 'text-embedding-v4@Qwen@Tongyi-Qianwen',
         similarityThreshold: 0.2,
         vectorSimilarityWeight: 0.3,
+        parserId: 'manual',
         createdAt: new Date(1790340994491).toISOString(),
         updatedAt: new Date(1790341074742).toISOString()
       }
@@ -277,6 +278,121 @@ describe('RagflowClient.listDocuments', () => {
 
     expect(items[0].run).toBe(expected)
   })
+
+  it('prefers the current ingestion status over a stale legacy run field', async () => {
+    fetchMock.mockResolvedValueOnce(
+      Response.json({
+        code: 0,
+        data: {
+          docs: [{ ...DOCUMENT_PAYLOAD, run: 'RUNNING', ingestion_status: 'COMPLETED' }],
+          total: 1
+        }
+      })
+    )
+
+    const { items } = await ragflowClient.listDocuments({ datasetId: 'ds-1' })
+
+    expect(items[0].run).toBe('DONE')
+  })
+})
+
+describe('RagflowClient dataset and document writes', () => {
+  it('creates a dataset with the built-in general parser', async () => {
+    fetchMock.mockResolvedValueOnce(
+      Response.json({ code: 0, data: { id: 'ds-1', name: 'TemporaryKB', parser_id: 'general' }, message: 'success' })
+    )
+
+    await expect(ragflowClient.createDataset({ name: 'TemporaryKB' })).resolves.toEqual({
+      id: 'ds-1',
+      name: 'TemporaryKB',
+      parserId: 'general'
+    })
+
+    expect(fetchUrl()).toBe(`${API_URL}/api/v1/datasets`)
+    expect(fetchInit()).toMatchObject({ method: 'POST' })
+    expect(JSON.parse(fetchInit().body as string)).toEqual({
+      name: 'TemporaryKB',
+      parse_type: 1,
+      parser_id: 'general'
+    })
+  })
+
+  it('uploads as multipart without a manual JSON content type', async () => {
+    fetchMock.mockResolvedValueOnce(
+      Response.json({
+        code: 0,
+        data: [{ id: 'doc-1', name: 'bid.pdf', size: 3, ingestion_status: 'UNSTART' }],
+        message: 'success'
+      })
+    )
+
+    await expect(
+      ragflowClient.uploadDocument({ datasetId: 'ds-1', filename: 'bid.pdf', content: new Uint8Array([1, 2, 3]) })
+    ).resolves.toEqual({ id: 'doc-1', name: 'bid.pdf', size: 3, chunkCount: 0, tokenCount: 0 })
+
+    expect(fetchUrl()).toBe(`${API_URL}/api/v1/datasets/ds-1/documents?type=local`)
+    const init = fetchInit()
+    expect(init.method).toBe('POST')
+    expect(new Headers(init.headers).get('Content-Type')).toBeNull()
+    const form = init.body as FormData
+    expect(form).toBeInstanceOf(FormData)
+    const file = form.get('file') as File
+    expect(file.name).toBe('bid.pdf')
+    expect(file.size).toBe(3)
+  })
+
+  it('patches document metadata', async () => {
+    fetchMock.mockResolvedValueOnce(Response.json({ code: 0, message: 'success' }))
+
+    await ragflowClient.updateDocumentMetadata({
+      datasetId: 'ds-1',
+      documentId: 'doc-1',
+      metaFields: { fingerprint: 'abc' }
+    })
+
+    expect(fetchUrl()).toBe(`${API_URL}/api/v1/datasets/ds-1/documents/doc-1`)
+    expect(fetchInit()).toMatchObject({ method: 'PATCH' })
+    expect(JSON.parse(fetchInit().body as string)).toEqual({ meta_fields: { fingerprint: 'abc' } })
+  })
+
+  it('triggers parsing through the ingestion endpoint', async () => {
+    fetchMock.mockResolvedValueOnce(Response.json({ code: 0, data: { success_count: 1 }, message: 'success' }))
+
+    await ragflowClient.startParsing({ datasetId: 'ds-1', documentIds: ['doc-1'] })
+
+    expect(fetchUrl()).toBe(`${API_URL}/api/v1/datasets/ds-1/documents/parse`)
+    expect(fetchInit()).toMatchObject({ method: 'POST' })
+    expect(JSON.parse(fetchInit().body as string)).toEqual({ document_ids: ['doc-1'] })
+  })
+
+  it('finds a document by id', async () => {
+    fetchMock.mockResolvedValueOnce(
+      Response.json({ code: 0, data: { docs: [DOCUMENT_PAYLOAD], total: 1 }, message: 'success' })
+    )
+
+    const document = await ragflowClient.findDocument({
+      datasetId: 'ds-1',
+      documentId: '97986ddab8e011f1bdf4a90f31e75474'
+    })
+
+    expect(document?.id).toBe('97986ddab8e011f1bdf4a90f31e75474')
+    expect(fetchUrl()).toContain('id=97986ddab8e011f1bdf4a90f31e75474')
+    expect(fetchUrl()).toContain('page_size=100')
+  })
+
+  it('returns null for a deleted document instead of surfacing the ownership error', async () => {
+    fetchMock.mockResolvedValueOnce(Response.json({ code: 102, message: "you don't own the document doc-1" }))
+
+    await expect(ragflowClient.findDocument({ datasetId: 'ds-1', documentId: 'doc-1' })).resolves.toBeNull()
+  })
+
+  it('queries documents by fingerprint metadata', async () => {
+    fetchMock.mockResolvedValueOnce(Response.json({ code: 0, data: { docs: [], total: 0 }, message: 'success' }))
+
+    await ragflowClient.listDocuments({ datasetId: 'ds-1', metadata: { fingerprint: 'abc' } })
+
+    expect(fetchUrl()).toContain('metadata%5Bfingerprint%5D=abc')
+  })
 })
 
 describe('RagflowClient.listChunks', () => {
@@ -319,9 +435,28 @@ describe('RagflowClient.listChunks', () => {
         content: 'The bidder shall submit two sealed envelopes.',
         documentId: 'doc-1',
         documentName: 'bid.docx',
-        available: true
+        available: true,
+        docType: 'image'
       }
     ])
+  })
+
+  it('maps position_int to page numbers and keeps the document order', async () => {
+    const chunk = {
+      chunk_id: 'chunk-1',
+      content_with_weight: 'table',
+      doc_type_kwd: 'table',
+      positions: [
+        [3, 10, 20, 30, 40],
+        [3, 12, 22, 32, 42],
+        [4, 10, 20, 30, 40]
+      ]
+    }
+    fetchMock.mockResolvedValueOnce(Response.json({ code: 0, data: { chunks: [chunk], total: 1 } }))
+
+    const { items } = await ragflowClient.listChunks({ datasetId: 'ds-1', documentId: 'doc-1' })
+
+    expect(items[0]).toMatchObject({ id: 'chunk-1', pages: [3, 4], docType: 'table' })
   })
 })
 
