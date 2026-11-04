@@ -227,6 +227,35 @@ describe('DataApiService devtools instrumentation', () => {
     })
   })
 
+  it('allows a slow data request to complete within the request timeout', async () => {
+    vi.useFakeTimers()
+    try {
+      const service = await createService()
+      request.mockImplementationOnce(
+        (req) =>
+          new Promise((resolve) => {
+            setTimeout(
+              () =>
+                resolve({
+                  id: req.id,
+                  status: 200,
+                  data: { ok: true },
+                  metadata: { timestamp: Date.now() }
+                }),
+              5_000
+            )
+          })
+      )
+
+      const resultPromise = service.get('/models/deepseek::deepseek-flash' as any)
+      await vi.advanceTimersByTimeAsync(5_000)
+
+      await expect(resultPromise).resolves.toEqual({ ok: true })
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   it('does not install or record devtools events outside development', async () => {
     configMock.isDev = false
     request.mockImplementationOnce(async (req) => ({

@@ -14,7 +14,7 @@
  * Key Features:
  * - Type-safe requests with full TypeScript inference
  * - Automatic retry with exponential backoff (network, timeout, 500/503 errors)
- * - Request timeout management (3s default)
+ * - Request timeout management (10s default)
  * - Data change notification fan-out (cross-window convergence)
  *
  * Architecture:
@@ -39,6 +39,7 @@ import type { DataRequest, DataResponse, HttpMethod } from '@shared/data/api/typ
 import { DataApiDevtools } from './utils/dataApiDevtools'
 
 const logger = loggerService.withContext('DataApiService')
+const DATA_API_REQUEST_TIMEOUT_MS = 10_000
 
 /**
  * Retry options interface.
@@ -143,7 +144,10 @@ export class DataApiService implements ApiClient {
       const response = await Promise.race([
         window.api.dataApi.request(request),
         new Promise<never>((_, reject) =>
-          setTimeout(() => reject(DataApiErrorFactory.timeout(request.path, 3000, requestContext)), 3000)
+          setTimeout(
+            () => reject(DataApiErrorFactory.timeout(request.path, DATA_API_REQUEST_TIMEOUT_MS, requestContext)),
+            DATA_API_REQUEST_TIMEOUT_MS
+          )
         )
       ])
 
