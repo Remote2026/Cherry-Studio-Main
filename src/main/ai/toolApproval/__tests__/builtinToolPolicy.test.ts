@@ -55,6 +55,15 @@ describe('builtinToolPolicy', () => {
     })
   })
 
+  it('auto-approves the business bid DOCX writer', () => {
+    expect(findBuiltinToolPolicy('mcp__cherry-tools__business_bid_create_docx', WITHOUT_HOST_TOOLS)).toMatchObject({
+      approval: 'auto'
+    })
+    expect(
+      listBuiltinToolPolicies({ approval: 'auto', mountedServers: WITHOUT_HOST_TOOLS }).map(toMcpRuntimeName)
+    ).toContain('mcp__cherry-tools__business_bid_create_docx')
+  })
+
   it('does not auto-approve an undeclared future tool', () => {
     expect(findBuiltinToolPolicy('mcp__cherry-tools__future_mutator', WITHOUT_HOST_TOOLS)).toBeUndefined()
     expect(

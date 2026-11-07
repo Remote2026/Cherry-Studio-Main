@@ -25,6 +25,7 @@ import { findAllSkillDirectories, findSkillMdPath, parseSkillMetadata } from '@m
 import type * as ProcessRunnerModule from '@main/utils/processRunner'
 import { CommandOutputLimitError } from '@main/utils/processRunner'
 import type * as ShellEnvModule from '@main/utils/shellEnv'
+import { BUSINESS_BID_AGENT_ID } from '@shared/ai/builtinAgentSkillDefaults'
 import { SKILL_LIST_MEMBERSHIP_DIMENSIONS } from '@shared/data/api/schemas/skills'
 import type { DataApiDataChangeEffect } from '@shared/data/api/types'
 import { BINARY_INSTALL_PREFERENCE_KEY } from '@shared/data/presets/binaryTools'
@@ -84,6 +85,7 @@ const AGENT_ID = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
 const SKILL_ID_1 = '11111111-1111-4111-8111-111111111111'
 const SKILL_ID_2 = '22222222-2222-4222-8222-222222222222'
 const SKILL_ID_BUILTIN = '33333333-3333-4333-8333-333333333333'
+const SKILL_ID_DOCX = '44444444-4444-4444-8444-444444444444'
 
 type SkillServicePrivate = {
   installSkillDir: (
@@ -306,6 +308,41 @@ describe('SkillService', () => {
       const builtin = result.find((s) => s.id === SKILL_ID_BUILTIN)
       expect(nonBuiltin.every((s) => s.isEnabled === false)).toBe(true)
       expect(builtin?.isEnabled).toBe(true)
+    })
+
+    it('applies agent-specific builtin skill defaults and honors explicit enablement', async () => {
+      const skillService = new SkillService()
+      await dbh.db.insert(agentTable).values({
+        id: BUSINESS_BID_AGENT_ID,
+        type: 'pi',
+        name: 'Business Bid',
+        instructions: '',
+        model: null,
+        orderKey: 'a1'
+      })
+      await seedSkills()
+      await dbh.db.insert(agentGlobalSkillTable).values({
+        id: SKILL_ID_DOCX,
+        name: 'docx',
+        description: 'DOCX handling',
+        folderName: 'docx',
+        source: 'builtin',
+        contentHash: 'docx999',
+        isEnabled: true
+      })
+
+      const before = await skillService.list({ agentId: BUSINESS_BID_AGENT_ID })
+      expect(before.find((s) => s.id === SKILL_ID_DOCX)?.isEnabled).toBe(false)
+      expect(before.find((s) => s.id === SKILL_ID_BUILTIN)?.isEnabled).toBe(true)
+
+      await dbh.db.insert(agentSkillTable).values({
+        agentId: BUSINESS_BID_AGENT_ID,
+        skillId: SKILL_ID_DOCX,
+        isEnabled: true
+      })
+
+      const after = await skillService.list({ agentId: BUSINESS_BID_AGENT_ID })
+      expect(after.find((s) => s.id === SKILL_ID_DOCX)?.isEnabled).toBe(true)
     })
 
     it('an explicit disabled row for a builtin skill overrides the enabled-by-default fallback', async () => {

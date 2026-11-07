@@ -7,14 +7,28 @@ import { promptBindingTable, promptTable } from '@data/db/schemas/prompt'
 import { agentService } from '@data/services/AgentService'
 import { agentSessionService } from '@data/services/AgentSessionService'
 import { promptService } from '@data/services/PromptService'
+import { BUSINESS_BID_AGENT_ID } from '@shared/ai/builtinAgentSkillDefaults'
 import type { AgentConfiguration } from '@shared/data/api/schemas/agents'
 import { AGENT_WORKSPACE_TYPE } from '@shared/data/api/schemas/agentWorkspaces'
 
 import type { DbType, ISeeder } from '../../types'
 
-export const BUSINESS_BID_AGENT_ID = 'business-bid'
+export { BUSINESS_BID_AGENT_ID }
 const INSTALL_MARKER_KEY = 'seed:businessBid:installed'
 const PREVIOUS_AVATAR = '📑'
+
+// Pi 原生工具名与 Pi 线名（server 名中的 - 会被 buildPiMcpToolName 转成 _）。
+const BUSINESS_BID_DISABLED_TOOLS = [
+  'bash',
+  'write',
+  'edit',
+  'mcp__cherry_tools__cli_install',
+  'mcp__skills__install_skill',
+  'mcp__mcp_manager__install_mcp_server',
+  'mcp__cherry_tools__session_create',
+  'mcp__cherry_tools__session_send'
+] as const
+
 // v1 发布的默认值；仅用于识别未被用户修改的存量安装并升级。
 export const BUSINESS_BID_PREVIOUS_PROMPT_CONTENT = `任务：根据招标文件分析报告生成商务投标文件 DOCX
 一、输入与输出
@@ -154,8 +168,12 @@ const BUSINESS_BID_PROMPT_CONTENT = `# 任务：基于招标文件分析报告�
 
 ### 工具与运行环境约束
 
-- 只使用 Cherry Studio 内置文档工具和 \`business_bid_create_docx\` 完成 DOCX 读取、填充、写入和重新打包。
+- 读取 DOCX、PDF、PPTX、XLSX：先调用 \`to_markdown\`，再用 \`read\` 读取返回的 Markdown 文件；不要直接读取二进制文件。
+- 读取 HTML 分析报告：直接用 \`read\` 读取附件绝对路径。
+- 写入只允许使用 \`business_bid_create_docx\`，禁止使用 \`write\`、\`edit\` 或 shell 写文件。
 - 禁止调用 shell、PowerShell、命令提示符、Python、Pandoc、LibreOffice、Microsoft Word 或其他外部程序。
+- 不要加载或读取 \`docx\`、\`office-transform\`、\`pdf\`、\`pptx\`、\`xlsx\`、\`cherry-tool-guide\` 技能及其 SKILL.md。
+- 仅当本轮消息明确提供 RagFlow 文档句柄 docId 时使用 \`bid_read_chunks\`；否则不要寻找或猜测该能力。
 - 不要求用户安装 Office、Python、Pandoc、LibreOffice 或其他运行时依赖；内置工具失败时直接报告错误。
 - 内置工具不执行真实打印分页、目录更新或打印效果验证。无法验证的页码和版式必须标记为“未验证”。
 
@@ -282,6 +300,10 @@ const BUSINESS_BID_INSTRUCTIONS = `# 角色
 
 按工作流分阶段执行：文件读取、模板转换、项目要求映射、内容填充、证明材料组织、分页及页码校验、最终检查。
 
+读取 DOCX、PDF、PPTX、XLSX 时先调用 to_markdown，再用 read 读取返回的 Markdown 文件；HTML 分析报告直接用 read 读取附件绝对路径。写入只允许使用 business_bid_create_docx，禁止 write、edit 或 shell 写文件。
+
+不要加载或读取 docx、office-transform、pdf、pptx、xlsx、cherry-tool-guide 技能及其 SKILL.md。仅当本轮消息明确提供 RagFlow 文档句柄 docId 时使用 bid_read_chunks。
+
 优先使用 Cherry Studio 内置文档工具和 business_bid_create_docx 完成 DOCX 解析、OOXML 编辑和重新打包；禁止调用 shell、Python、Pandoc、LibreOffice、Microsoft Word 或其他外部程序。内置工具不执行真实打印分页、目录更新或打印效果验证，无法验证的内容必须标记为未验证。
 
 发现缺失材料、无法解析内容、分页异常或索引不匹配时，应记录问题，不得掩盖。
@@ -300,6 +322,7 @@ const BUSINESS_BID_SEED = {
     title: '生成商务标书',
     content: BUSINESS_BID_PROMPT_CONTENT
   },
+  disabledTools: BUSINESS_BID_DISABLED_TOOLS,
   configuration: {
     avatar: '🍆',
     permission_mode: 'bypassPermissions',
@@ -312,12 +335,17 @@ export class BusinessBidSeeder implements ISeeder {
   readonly name = 'businessBid'
   readonly description = 'Insert the built-in business bid document agent and its editable user prompt'
   readonly executionPolicy = 'run-on-change' as const
-  readonly version = '10'
+  readonly version = '11'
 
   run(db: DbType): void {
     db.transaction((tx) => {
       const existing = tx
-        .select({ id: agentTable.id, instructions: agentTable.instructions, configuration: agentTable.configuration })
+        .select({
+          id: agentTable.id,
+          instructions: agentTable.instructions,
+          disabledTools: agentTable.disabledTools,
+          configuration: agentTable.configuration
+        })
         .from(agentTable)
         .where(eq(agentTable.id, BUSINESS_BID_AGENT_ID))
         .limit(1)
@@ -325,17 +353,21 @@ export class BusinessBidSeeder implements ISeeder {
       if (existing.length > 0) {
         // 补写安装标记，避免后续版本把用户已删除的智能体重建出来。
         this.ensureInstallMarkerTx(tx)
-        // 只升级仍是旧版默认值的头像；用户改过的一律保留。
-        if (existing[0].configuration?.avatar === PREVIOUS_AVATAR) {
-          tx.update(agentTable)
-            .set({
-              configuration: { ...existing[0].configuration, avatar: BUSINESS_BID_SEED.configuration.avatar }
-            })
-            .where(eq(agentTable.id, BUSINESS_BID_AGENT_ID))
-            .run()
+        const current = existing[0]
+        // 保留用户自定义的头像和配置键；权限模式属于产品维护的运行配置。
+        const configuration = {
+          ...current.configuration,
+          ...(current.configuration.avatar === PREVIOUS_AVATAR
+            ? { avatar: BUSINESS_BID_SEED.configuration.avatar }
+            : {}),
+          permission_mode: BUSINESS_BID_SEED.configuration.permission_mode
         }
         tx.update(agentTable)
-          .set({ instructions: BUSINESS_BID_SEED.instructions })
+          .set({
+            instructions: BUSINESS_BID_SEED.instructions,
+            disabledTools: Array.from(new Set([...current.disabledTools, ...BUSINESS_BID_DISABLED_TOOLS])),
+            configuration
+          })
           .where(eq(agentTable.id, BUSINESS_BID_AGENT_ID))
           .run()
         this.upgradeUserPromptTx(tx)
@@ -351,6 +383,7 @@ export class BusinessBidSeeder implements ISeeder {
         instructions: BUSINESS_BID_SEED.instructions,
         // 种子阶段偏好尚未就绪，由用户在智能体编辑器中选择 Pi 兼容模型。
         model: null,
+        disabledTools: [...BUSINESS_BID_SEED.disabledTools],
         configuration: { ...BUSINESS_BID_SEED.configuration }
       })
       if (!row) {

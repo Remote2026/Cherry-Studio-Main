@@ -19,6 +19,17 @@ import { promptService } from '@data/services/PromptService'
 import { generateOrderKeyBetween } from '@data/services/utils/orderKey'
 import { AGENT_WORKSPACE_TYPE } from '@shared/data/api/schemas/agentWorkspaces'
 
+const DISABLED_TOOLS = [
+  'bash',
+  'write',
+  'edit',
+  'mcp__cherry_tools__cli_install',
+  'mcp__skills__install_skill',
+  'mcp__mcp_manager__install_mcp_server',
+  'mcp__cherry_tools__session_create',
+  'mcp__cherry_tools__session_send'
+]
+
 describe('BusinessBidSeeder', () => {
   const dbh = setupTestDatabase()
 
@@ -35,7 +46,7 @@ describe('BusinessBidSeeder', () => {
   it('uses a stable seeder identity', () => {
     const seeder = new BusinessBidSeeder()
     expect(seeder.name).toBe('businessBid')
-    expect(seeder.version).toBe('10')
+    expect(seeder.version).toBe('11')
     expect(seeder.executionPolicy).toBe('run-on-change')
     expect(seeder.description).toBeTruthy()
   })
@@ -58,7 +69,10 @@ describe('BusinessBidSeeder', () => {
     expect(agent.instructions).toContain('企业知识库')
     expect(agent.instructions).toContain('禁止调用 shell')
     expect(agent.instructions).toContain('business_bid_create_docx')
+    expect(agent.instructions).toContain('to_markdown')
     expect(agent.instructions).toContain('黄色高亮')
+    expect(agent.disabledTools).toEqual(expect.arrayContaining(DISABLED_TOOLS))
+    expect(agent.disabledTools).not.toContain('read')
     expect(agent.configuration).toMatchObject({
       avatar: '🍆',
       permission_mode: 'bypassPermissions',
@@ -99,6 +113,7 @@ describe('BusinessBidSeeder', () => {
     expect(prompt.content.startsWith('# 任务：基于招标文件分析报告生成商务投标文件 DOCX')).toBe(true)
     expect(prompt.content).toContain('{项目名}-商务标书-待补充事项清单.html')
     expect(prompt.content).toContain('禁止调用 shell')
+    expect(prompt.content).toContain('to_markdown')
     expect(dbh.db.select().from(promptBindingTable).all()).toHaveLength(1)
   })
 
@@ -130,7 +145,11 @@ describe('BusinessBidSeeder', () => {
     new BusinessBidSeeder().run(dbh.db)
 
     const [agent] = dbh.db.select().from(agentTable).where(eq(agentTable.id, BUSINESS_BID_AGENT_ID)).all()
-    expect(agent.configuration).toMatchObject({ avatar: '🍆', custom: true })
+    expect(agent.configuration).toMatchObject({
+      avatar: '🍆',
+      custom: true,
+      permission_mode: 'bypassPermissions'
+    })
   })
 
   it('keeps a user-customized avatar', () => {
@@ -150,7 +169,33 @@ describe('BusinessBidSeeder', () => {
     new BusinessBidSeeder().run(dbh.db)
 
     const [agent] = dbh.db.select().from(agentTable).where(eq(agentTable.id, BUSINESS_BID_AGENT_ID)).all()
-    expect(agent.configuration).toMatchObject({ avatar: '🥝' })
+    expect(agent.configuration).toMatchObject({ avatar: '🥝', permission_mode: 'bypassPermissions' })
+  })
+
+  it('merges tool blocks and forces the runtime permission mode on upgrade', () => {
+    dbh.db
+      .insert(agentTable)
+      .values({
+        id: BUSINESS_BID_AGENT_ID,
+        type: 'pi',
+        name: '生成商务标书',
+        description: '',
+        instructions: '',
+        disabledTools: ['custom-tool'],
+        configuration: { avatar: '🍆', permission_mode: 'default', custom: true },
+        orderKey: generateOrderKeyBetween(null, null)
+      })
+      .run()
+
+    new BusinessBidSeeder().run(dbh.db)
+
+    const [agent] = dbh.db.select().from(agentTable).where(eq(agentTable.id, BUSINESS_BID_AGENT_ID)).all()
+    expect(agent.disabledTools).toEqual(expect.arrayContaining(['custom-tool', ...DISABLED_TOOLS]))
+    expect(agent.configuration).toMatchObject({
+      avatar: '🍆',
+      custom: true,
+      permission_mode: 'bypassPermissions'
+    })
   })
 
   it('is idempotent across repeated runs', () => {
@@ -180,6 +225,8 @@ describe('BusinessBidSeeder', () => {
     expect(agent.name).toBe('我的商务标书助手')
     expect(agent.description).toBe('自定义描述')
     expect(agent.instructions.startsWith('# 角色')).toBe(true)
+    expect(agent.disabledTools).toEqual(expect.arrayContaining(DISABLED_TOOLS))
+    expect(agent.configuration).toMatchObject({ permission_mode: 'bypassPermissions' })
     const [updated] = promptService.listBoundToTarget({ type: 'agent', id: BUSINESS_BID_AGENT_ID })
     expect(updated).toMatchObject({
       title: '生成商务标书',

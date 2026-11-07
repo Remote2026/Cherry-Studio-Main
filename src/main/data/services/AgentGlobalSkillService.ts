@@ -15,6 +15,7 @@ import type { DbOrTx } from '@data/db/types'
 import { agentService } from '@data/services/AgentService'
 import { registerDataService } from '@data/services/dataServiceRegistry'
 import { timestampToISO } from '@data/services/utils/rowMappers'
+import { isBuiltinSkillEnabledForAgentByDefault } from '@shared/ai/builtinAgentSkillDefaults'
 import { DataApiErrorFactory } from '@shared/data/api/errors'
 import type { AgentSkillUpdateDto } from '@shared/data/api/schemas/agents'
 import {
@@ -91,12 +92,15 @@ export class AgentGlobalSkillService {
             .all()
         : this.db.select().from(agentGlobalSkillTable).orderBy(asc(agentGlobalSkillTable.createdAt)).all()
     const skills = rows.map((row) => this.rowToInstalledSkill(row))
-    if (!query.agentId) return skills
+    const agentId = query.agentId
+    if (!agentId) return skills
 
-    const enabledMap = this.loadEnabledMap(query.agentId)
+    const enabledMap = this.loadEnabledMap(agentId)
     return skills.map((s) => ({
       ...s,
-      isEnabled: enabledMap.get(s.id) ?? s.source === 'builtin'
+      isEnabled:
+        enabledMap.get(s.id) ??
+        (s.source === 'builtin' && isBuiltinSkillEnabledForAgentByDefault(agentId, s.folderName))
     }))
   }
 
