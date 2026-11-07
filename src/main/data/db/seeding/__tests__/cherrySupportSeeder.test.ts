@@ -1,7 +1,6 @@
 import { setupTestDatabase } from '@test-helpers/db'
 import { eq, sql } from 'drizzle-orm'
-import { app } from 'electron'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 
 import { agentTable } from '@data/db/schemas/agent'
 import { agentSessionTable } from '@data/db/schemas/agentSession'
@@ -24,11 +23,7 @@ function builtinAgents(db: ReturnType<typeof setupTestDatabase>['db'], role: str
 describe('CherrySupportSeeder', () => {
   const dbh = setupTestDatabase()
 
-  beforeEach(() => {
-    vi.mocked(app.getPreferredSystemLanguages).mockReturnValue(['en-US'])
-  })
-
-  it('creates Cherry Support beside Cherry Assistant with a system session and copied model', () => {
+  it('creates the enterprise knowledge base query agent with a system session and copied model', () => {
     new CherryAiDefaultModelSeeder().run(dbh.db)
     new CherryAssistantSeeder().run(dbh.db)
     const [assistant] = builtinAgents(dbh.db, BUILTIN_AGENT_ROLE.ASSISTANT)
@@ -43,9 +38,9 @@ describe('CherrySupportSeeder', () => {
     const [support] = builtinAgents(dbh.db, BUILTIN_AGENT_ROLE.SUPPORT)
     expect(support).toMatchObject({
       id: CHERRY_SUPPORT_AGENT_ID,
-      name: 'Cherry Support',
+      name: '企业知识库查询',
       description: '',
-      instructions: '',
+      instructions: expect.stringContaining('企业知识库查询 Agent'),
       model: CHERRYAI_DEFAULT_UNIQUE_MODEL_ID
     })
     expect(support.configuration).toMatchObject({
@@ -65,28 +60,26 @@ describe('CherrySupportSeeder', () => {
     expect(workspace).toMatchObject({ type: AGENT_WORKSPACE_TYPE.SYSTEM })
   })
 
-  it('uses the Chinese name and remains idempotent', () => {
-    vi.mocked(app.getPreferredSystemLanguages).mockReturnValue(['zh-CN'])
-
+  it('uses the fixed name and remains idempotent', () => {
     new CherrySupportSeeder().run(dbh.db)
     new CherrySupportSeeder().run(dbh.db)
 
     expect(builtinAgents(dbh.db, BUILTIN_AGENT_ROLE.SUPPORT)).toHaveLength(1)
-    expect(builtinAgents(dbh.db, BUILTIN_AGENT_ROLE.SUPPORT)[0].name).toBe('产品反馈')
+    expect(builtinAgents(dbh.db, BUILTIN_AGENT_ROLE.SUPPORT)[0].name).toBe('企业知识库查询')
     expect(dbh.db.select().from(agentSessionTable).all()).toHaveLength(1)
   })
 
-  it('updates the previous stock Chinese name without replacing a custom name', () => {
+  it('forces the name and instructions to the built-in query configuration', () => {
     new CherrySupportSeeder().run(dbh.db)
     dbh.db.update(agentTable).set({ name: 'Cherry 支持' }).where(eq(agentTable.id, CHERRY_SUPPORT_AGENT_ID)).run()
 
     new CherrySupportSeeder().run(dbh.db)
-    expect(builtinAgents(dbh.db, BUILTIN_AGENT_ROLE.SUPPORT)[0].name).toBe('产品反馈')
+    expect(builtinAgents(dbh.db, BUILTIN_AGENT_ROLE.SUPPORT)[0].name).toBe('企业知识库查询')
 
     dbh.db.update(agentTable).set({ name: '我的反馈助手' }).where(eq(agentTable.id, CHERRY_SUPPORT_AGENT_ID)).run()
     new CherrySupportSeeder().run(dbh.db)
 
-    expect(builtinAgents(dbh.db, BUILTIN_AGENT_ROLE.SUPPORT)[0].name).toBe('我的反馈助手')
+    expect(builtinAgents(dbh.db, BUILTIN_AGENT_ROLE.SUPPORT)[0].name).toBe('企业知识库查询')
   })
 
   it('claims an active reserved ID in place without replacing data or creating another session', () => {
@@ -106,8 +99,8 @@ describe('CherrySupportSeeder', () => {
     const [support] = builtinAgents(dbh.db, BUILTIN_AGENT_ROLE.SUPPORT)
     expect(support).toMatchObject({
       id: CHERRY_SUPPORT_AGENT_ID,
-      name: 'My Reserved Agent',
-      instructions: 'Keep these instructions',
+      name: '企业知识库查询',
+      instructions: expect.stringContaining('企业知识库查询 Agent'),
       configuration: { avatar: 'U', heartbeat_interval: 7, builtin_role: 'support' }
     })
     expect(dbh.db.select().from(agentSessionTable).all()).toHaveLength(1)

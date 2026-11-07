@@ -56,7 +56,7 @@ const CAPABILITIES_BY_ROLE: Record<BuiltinAgentRole, AgentCapabilities> = {
   },
   [BUILTIN_AGENT_ROLE.SUPPORT]: {
     environment: 'sealed',
-    allKnowledgeBases: false,
+    allKnowledgeBases: true,
     // Product-support capabilities intentionally exclude creation of arbitrary Agents. Reusable
     // channel-linked sessions keep the full surface; per-turn guards deny UI-backed tools headlessly.
     hostTools: {

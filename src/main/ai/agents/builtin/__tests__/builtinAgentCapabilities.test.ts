@@ -31,6 +31,7 @@ describe('resolveAgentCapabilities', () => {
   it('closes Cherry Support to its own bundle', () => {
     const capabilities = resolveAgentCapabilities({ configuration: { builtin_role: BUILTIN_AGENT_ROLE.SUPPORT } })
     expect(capabilities.environment).toBe('sealed')
+    expect(capabilities.allKnowledgeBases).toBe(true)
   })
 
   it('withholds arbitrary Agent creation from Cherry Support', () => {
