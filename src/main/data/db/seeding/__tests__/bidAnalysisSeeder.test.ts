@@ -31,7 +31,7 @@ describe('BidAnalysisSeeder', () => {
   it('uses a stable seeder identity', () => {
     const seeder = new BidAnalysisSeeder()
     expect(seeder.name).toBe('bidAnalysis')
-    expect(seeder.version).toBe('11')
+    expect(seeder.version).toBe('13')
     expect(seeder.executionPolicy).toBe('run-on-change')
     expect(seeder.description).toBeTruthy()
   })
@@ -47,12 +47,13 @@ describe('BidAnalysisSeeder', () => {
       description: '分析招标文件，生成 HTML 格式的分析报告',
       model: null
     })
-    expect(agent.instructions.startsWith('# 角色定义')).toBe(true)
-    expect(agent.instructions).toContain('你是一名资深投标顾问和招标采购文件分析专家')
-    expect(agent.instructions).toContain('RagFlow 文档顺序读取')
-    expect(agent.instructions).toContain('mcp__cherry-tools__bid_read_chunks')
-    expect(agent.instructions).toContain('mcp__cherry-tools__bid_check_coverage')
-    expect(agent.instructions).toContain('[第N段｜第P页｜章节]')
+    expect(agent.instructions.startsWith('# 角色')).toBe(true)
+    expect(agent.instructions).toContain('附件角色')
+    expect(agent.instructions).toContain('资格状态只能使用：满足、需澄清、不满足、待核实')
+    expect(agent.instructions).toContain('完成 coverage 检查后再分析')
+    expect(agent.instructions).toContain('生成实际可打开的 UTF-8 HTML 文件')
+    expect(agent.instructions).toContain('文件名必须严格为“项目名-分析报告.html”')
+    expect(agent.instructions.length).toBeLessThan(8_000)
     expect(agent.configuration).toMatchObject({
       avatar: '🍆',
       permission_mode: 'bypassPermissions',
@@ -81,7 +82,7 @@ describe('BidAnalysisSeeder', () => {
     const [agent] = dbh.db.select().from(agentTable).where(eq(agentTable.id, BID_ANALYSIS_AGENT_ID)).all()
     expect(agent.name).toBe('招标文件分析')
     expect(agent.description).toBe('分析招标文件，生成 HTML 格式的分析报告')
-    expect(agent.instructions.startsWith('# 角色定义')).toBe(true)
+    expect(agent.instructions.startsWith('# 角色')).toBe(true)
     expect(agent.instructions).not.toBe('你是标书顾问')
   })
 
@@ -114,7 +115,7 @@ describe('BidAnalysisSeeder', () => {
       visibility: 'restricted'
     })
     expect(prompt.content.startsWith('请分析本次上传的招标文件')).toBe(true)
-    expect(prompt.content).toContain('报告文件名：xxxx招标文件分析报告.html')
+    expect(prompt.content).toContain('报告文件名：项目名-分析报告.html')
     expect(dbh.db.select().from(promptBindingTable).all()).toHaveLength(1)
   })
 

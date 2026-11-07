@@ -33,13 +33,14 @@ const coverageInputSchema = z.object({ docId: z.string().min(1) })
 
 const BID_READ_CHUNKS_DESCRIPTION = `Read consecutive chunks from a PDF/DOCX parsed by RagFlow (TemporaryKB).
 
-Pass docId only on the first call; then pass the previous nextIndex as startIndex until done=true.
-Each chunk header is [第N段｜第P页｜3.1.2 企业资质] (page/section only when known); table chunks are marked [表].
-If status="processing", wait retryAfterMs and call again. Before writing the report, call ${BID_CHECK_COVERAGE_TOOL_NAME} and finish any gaps. Do not use read/bash on the original file.`
+Input: docId is required; omit startIndex on the first call, then pass the previous nextIndex unchanged. maxTokens is optional (1-${MAX_TOKENS}, default ${DEFAULT_MAX_TOKENS}).
+Chunks include [第N段｜第P页｜章节] when page/section is known; table chunks are marked [表].
+If status="processing", call again with the same docId/startIndex after retryAfterMs; do not use read/bash or invent content. Before reporting, call ${BID_CHECK_COVERAGE_TOOL_NAME} and resolve all gaps.`
 
-const BID_CHECK_COVERAGE_DESCRIPTION = `Check that the contiguous chunk read reached the end of a RagFlow TemporaryKB document.
+const BID_CHECK_COVERAGE_DESCRIPTION = `Check contiguous read coverage for a RagFlow TemporaryKB document.
 
-Returns gaps, covered/missing sections, and read/unread table chunks. complete=true only proves the tool delivered every chunk; it does not prove the analysis is correct. Do not claim coverage when tables is null.`
+Input: docId is required. Returns gaps, covered/missing sections, and read/unread table chunks.
+complete=true proves every chunk was delivered, not that the analysis is correct; continue reading when complete=false or gaps exist.`
 
 export interface BidDocumentToolsContext {
   sessionId: string

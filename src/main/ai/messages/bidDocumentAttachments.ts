@@ -54,18 +54,13 @@ const filenameOf = (part: FileMessagePart): string => {
 const buildHandleText = (docId: string, filename: string): string =>
   [
     `[系统提示] 附件「${filename}」已上传到 RagFlow 的 TemporaryKB，由 General/DeepDOC 解析。`,
-    '请勿使用 read/bash/sleep 或其他命令直接读取原文件或等待解析。',
+    '正文只能通过下方文档工具读取，不得直接读取原文件或使用命令等待解析。',
     '',
     `文档句柄：${docId}`,
     '',
-    '读取协议（必须遵守）：',
-    `1. 调用 mcp__cherry-tools__${BID_READ_CHUNKS_TOOL_NAME}，参数 {"docId":"${docId}"}；首次省略 startIndex（从 0 开始）。`,
-    '2. 每次返回连续若干段（约 6000 tokens）；下一次把返回的 nextIndex 原样作为 startIndex，直到 done=true。',
-    '3. 若返回 status="processing"，不要执行 sleep/bash；直接再次调用同一工具和 docId/startIndex，解析完成前不得编造内容。',
-    '4. 段头格式 [第N段｜第P页｜章节]；PDF 页码来自 RagFlow positions，DOCX 无页码；引用时使用段头中的页码/章节，不得编造。',
-    `5. 每读完一批，立即把段号、页码/章节、条款编号、原文摘录、风险分类追加到工作区 bid-analysis-notes/<docId>.md。`,
-    `6. 生成报告前调用 mcp__cherry-tools__${BID_CHECK_COVERAGE_TOOL_NAME}；未 complete 或有 gaps 时继续读，不得声称已读完。`,
-    '7. 工具报“文档已过期/不存在”时，告知用户重新发送附件。'
+    `使用 mcp__cherry-tools__${BID_READ_CHUNKS_TOOL_NAME} 连续读取；首次只传 docId，后续沿用工具返回的 nextIndex。`,
+    `生成报告前调用 mcp__cherry-tools__${BID_CHECK_COVERAGE_TOOL_NAME}，只有 complete 且无 gaps 时才能声称已读完。`,
+    '工具返回失败、过期或不属于当前会话时，告知用户检查 RagFlow 或重新发送附件。'
   ].join('\n')
 
 const buildFailureText = (filename: string, reason: string): string =>

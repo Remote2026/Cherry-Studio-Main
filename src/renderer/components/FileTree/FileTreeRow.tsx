@@ -35,6 +35,16 @@ export function FileTreeRow(props: FileTreeRowProps) {
   const isFolder = node.kind === 'folder'
   const isRenaming = renameSlot ? renameSlot.isRenaming(node) : false
   const effectiveDragHandleProps = isRenaming ? { ...dragHandleProps, draggable: false } : dragHandleProps
+  const externalDragProps = isRenaming
+    ? {}
+    : {
+        draggable: true,
+        onDragStart: (event: React.DragEvent<HTMLDivElement>) => {
+          effectiveDragHandleProps.onDragStart?.(event)
+          event.dataTransfer.setData('text/plain', node.path)
+          event.dataTransfer.setData('text/uri-list', `file://${node.path.replace(/\\/g, '/')}`)
+        }
+      }
 
   const nameAnimationClassName = animationSlot
     ? animationSlot.isAnimating(node)
@@ -85,6 +95,7 @@ export function FileTreeRow(props: FileTreeRowProps) {
   const row = (
     <div
       {...effectiveDragHandleProps}
+      {...externalDragProps}
       data-node-id={node.id}
       data-kind={node.kind}
       role="treeitem"

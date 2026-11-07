@@ -47,10 +47,23 @@ const passthroughRenderList: NonNullable<FileTreeProps['renderList']> = ({ flat,
 )
 
 describe('FileTree - read-only form (no callbacks)', () => {
-  it('renders rows without drag support', () => {
+  it('renders rows as externally draggable', () => {
     render(<FileTree nodes={nodes} defaultExpandedIds={new Set(['root'])} renderList={passthroughRenderList} />)
     const rootRow = screen.getByText('Root').closest('[data-node-id="root"]')!
-    expect(rootRow).toHaveAttribute('draggable', 'false')
+    expect(rootRow).toHaveAttribute('draggable', 'true')
+  })
+
+  it('exports a file path when dragging a workspace row', () => {
+    render(<FileTree nodes={nodes} defaultExpandedIds={new Set(['root'])} renderList={passthroughRenderList} />)
+    const fileRow = screen.getByText('A.md').closest('[data-node-id="a"]')!
+    const setData = vi.fn()
+
+    fireEvent.dragStart(fileRow, {
+      dataTransfer: { setData }
+    })
+
+    expect(setData).toHaveBeenNthCalledWith(1, 'text/plain', 'root/a.md')
+    expect(setData).toHaveBeenNthCalledWith(2, 'text/uri-list', 'file://root/a.md')
   })
 
   it('toggles expand on folder row click', async () => {
