@@ -81,6 +81,16 @@ afterEach(async () => {
 })
 
 describe('prepareBidDocumentMessage', () => {
+  it('does not upload business bid inputs to the temporary bid RagFlow store', async () => {
+    const path = await makeFile('template.docx', 'docx bytes')
+    const message = makeMessage([filePart(path, 'template.docx')])
+
+    const result = await run(message, 'business-bid')
+
+    expect(result).toBe(message)
+    expect(mocks.ingestBidDocument).not.toHaveBeenCalled()
+  })
+
   it('uploads a PDF and replaces the file part with the read protocol', async () => {
     const path = await makeFile('bid.pdf', 'pdf bytes')
     const message = makeMessage([filePart(path, 'bid.pdf')])

@@ -485,6 +485,41 @@ export const TO_MARKDOWN_DESCRIPTION =
 export type ToMarkdownInput = z.infer<typeof toMarkdownInputSchema>
 export type ToMarkdownOutput = z.infer<typeof toMarkdownOutputSchema>
 
+// ── business_bid_create_docx ────────────────────────────────────
+
+export const BUSINESS_BID_CREATE_DOCX_TOOL_NAME = 'business_bid_create_docx'
+
+export const businessBidCreateDocxInputSchema = z.object({
+  templatePath: z.string().trim().min(1).max(4096),
+  reportPath: z.string().trim().min(1).max(4096),
+  projectName: z.string().trim().min(1).max(200),
+  replacements: z
+    .array(
+      z.object({
+        anchorText: z.string().trim().min(1).max(500),
+        value: z.string().max(20_000),
+        status: z.enum(['filled', 'pending', 'confirmed']),
+        position: z.enum(['after', 'replace']).default('after')
+      })
+    )
+    .max(500)
+})
+
+export const BUSINESS_BID_CREATE_DOCX_DESCRIPTION =
+  'Create a business bid DOCX from the attached/template DOCX without rebuilding it from HTML. ' +
+  'The template and report must be readable. Each change targets exact existing anchor text from the template, ' +
+  'not a made-up placeholder. By default the marked value is appended after the anchor; use replace only when ' +
+  'the existing anchor is a replaceable field value. Filled content is highlighted yellow, pending content red, and confirmed content orange. ' +
+  'The original package structure, styles, images, headers, and footers are retained where untouched. ' +
+  'This tool does not verify pagination, table of contents, or printed page numbers.'
+
+export const businessBidCreateDocxOutputSchema = z.object({
+  path: z.string(),
+  checklistPath: z.string(),
+  replaced: z.number().int().nonnegative(),
+  missing: z.array(z.string())
+})
+
 // ── report_artifacts ─────────────────────────────────────────────
 
 export const REPORT_ARTIFACTS_TOOL_NAME = 'report_artifacts'

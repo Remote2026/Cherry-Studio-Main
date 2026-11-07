@@ -72,6 +72,8 @@ const buildTooLargeText = (filename: string): string =>
 export async function prepareBidDocumentMessage(
   input: PrepareBidDocumentMessageInput
 ): Promise<AgentSessionMessageEntity> {
+  if (input.agentId === 'business-bid') return input.message
+
   const parts = input.message.data?.parts
   if (!parts?.length) return input.message
 

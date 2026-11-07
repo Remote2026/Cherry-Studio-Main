@@ -35,7 +35,7 @@ describe('BusinessBidSeeder', () => {
   it('uses a stable seeder identity', () => {
     const seeder = new BusinessBidSeeder()
     expect(seeder.name).toBe('businessBid')
-    expect(seeder.version).toBe('3')
+    expect(seeder.version).toBe('9')
     expect(seeder.executionPolicy).toBe('run-on-change')
     expect(seeder.description).toBeTruthy()
   })
@@ -48,11 +48,15 @@ describe('BusinessBidSeeder', () => {
       id: 'business-bid',
       type: 'pi',
       name: '生成商务标书',
-      description: '根据招标文件分析报告生成商务投标文件 HTML',
+      description: '根据招标文件分析报告生成商务投标文件 DOCX',
       model: null
     })
     expect(agent.instructions.startsWith('# 角色')).toBe(true)
     expect(agent.instructions).toContain('你是专业的商务投标文件编制 Agent')
+    expect(agent.instructions).toContain('一个商务标书模板 DOCX')
+    expect(agent.instructions).toContain('一个招标文件分析报告 HTML')
+    expect(agent.instructions).toContain('企业知识库')
+    expect(agent.instructions).toContain('黄色高亮')
     expect(agent.configuration).toMatchObject({
       avatar: '🍆',
       permission_mode: 'bypassPermissions',
@@ -90,7 +94,7 @@ describe('BusinessBidSeeder', () => {
       title: '生成商务标书',
       visibility: 'restricted'
     })
-    expect(prompt.content.startsWith('# 任务：基于招标文件分析报告生成商务投标文件 HTML')).toBe(true)
+    expect(prompt.content.startsWith('# 任务：基于招标文件分析报告生成商务投标文件 DOCX')).toBe(true)
     expect(prompt.content).toContain('{项目名}-商务标书-待补充事项清单.html')
     expect(dbh.db.select().from(promptBindingTable).all()).toHaveLength(1)
   })
@@ -103,7 +107,7 @@ describe('BusinessBidSeeder', () => {
     new BusinessBidSeeder().run(dbh.db)
 
     const [prompt] = promptService.listBoundToTarget({ type: 'agent', id: BUSINESS_BID_AGENT_ID })
-    expect(prompt.content.startsWith('# 任务：基于招标文件分析报告生成商务投标文件 HTML')).toBe(true)
+    expect(prompt.content.startsWith('# 任务：基于招标文件分析报告生成商务投标文件 DOCX')).toBe(true)
   })
 
   it('upgrades the avatar of an unmodified install', () => {
@@ -157,7 +161,7 @@ describe('BusinessBidSeeder', () => {
     expect(dbh.db.select().from(promptBindingTable).all()).toHaveLength(1)
   })
 
-  it('preserves user edits when the seeder reruns', () => {
+  it('preserves agent edits but force-updates the bound prompt', () => {
     new BusinessBidSeeder().run(dbh.db)
     dbh.db
       .update(agentTable)
@@ -172,9 +176,12 @@ describe('BusinessBidSeeder', () => {
     const [agent] = dbh.db.select().from(agentTable).where(eq(agentTable.id, BUSINESS_BID_AGENT_ID)).all()
     expect(agent.name).toBe('我的商务标书助手')
     expect(agent.description).toBe('自定义描述')
-    expect(agent.instructions).toBe('自定义提示词')
+    expect(agent.instructions.startsWith('# 角色')).toBe(true)
     const [updated] = promptService.listBoundToTarget({ type: 'agent', id: BUSINESS_BID_AGENT_ID })
-    expect(updated).toMatchObject({ title: '自定义标题', content: '自定义内容' })
+    expect(updated).toMatchObject({
+      title: '生成商务标书',
+      content: expect.stringContaining('# 任务：基于招标文件分析报告生成商务投标文件 DOCX')
+    })
   })
 
   it('does not recreate a soft-deleted agent', () => {

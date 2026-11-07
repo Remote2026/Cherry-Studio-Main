@@ -31,7 +31,7 @@ describe('BidAnalysisSeeder', () => {
   it('uses a stable seeder identity', () => {
     const seeder = new BidAnalysisSeeder()
     expect(seeder.name).toBe('bidAnalysis')
-    expect(seeder.version).toBe('13')
+    expect(seeder.version).toBe('17')
     expect(seeder.executionPolicy).toBe('run-on-change')
     expect(seeder.description).toBeTruthy()
   })
@@ -49,6 +49,9 @@ describe('BidAnalysisSeeder', () => {
     })
     expect(agent.instructions.startsWith('# 角色')).toBe(true)
     expect(agent.instructions).toContain('附件角色')
+    expect(agent.instructions).toContain('企业知识库是判断本方能力的必查证据源')
+    expect(agent.instructions).toContain('使用 kb_list 盘点当前可访问的全部企业知识库')
+    expect(agent.instructions).toContain('每一项企业资格、响应能力和评分结论必须同时给出招标文件依据与企业知识库证据')
     expect(agent.instructions).toContain('资格状态只能使用：满足、需澄清、不满足、待核实')
     expect(agent.instructions).toContain('完成 coverage 检查后再分析')
     expect(agent.instructions).toContain('生成实际可打开的 UTF-8 HTML 文件')
@@ -116,6 +119,7 @@ describe('BidAnalysisSeeder', () => {
     })
     expect(prompt.content.startsWith('请分析本次上传的招标文件')).toBe(true)
     expect(prompt.content).toContain('报告文件名：项目名-分析报告.html')
+    expect(prompt.content).toContain('必须结合企业知识库判断本方是否满足')
     expect(dbh.db.select().from(promptBindingTable).all()).toHaveLength(1)
   })
 
@@ -196,7 +200,7 @@ describe('BidAnalysisSeeder', () => {
     expect(dbh.db.select().from(promptBindingTable).all()).toHaveLength(1)
   })
 
-  it('preserves user edits when the seeder reruns', () => {
+  it('preserves agent metadata but force-updates instructions and prompt', () => {
     new BidAnalysisSeeder().run(dbh.db)
     dbh.db
       .update(agentTable)
@@ -211,9 +215,12 @@ describe('BidAnalysisSeeder', () => {
     const [agent] = dbh.db.select().from(agentTable).where(eq(agentTable.id, BID_ANALYSIS_AGENT_ID)).all()
     expect(agent.name).toBe('我的标书助手')
     expect(agent.description).toBe('自定义描述')
-    expect(agent.instructions).toBe('自定义提示词')
+    expect(agent.instructions.startsWith('# 角色')).toBe(true)
     const [updated] = promptService.listBoundToTarget({ type: 'agent', id: BID_ANALYSIS_AGENT_ID })
-    expect(updated).toMatchObject({ title: '自定义标题', content: '自定义内容' })
+    expect(updated).toMatchObject({
+      title: '生成分析报告',
+      content: expect.stringContaining('请分析本次上传的招标文件')
+    })
   })
 
   it('does not recreate a soft-deleted agent', () => {

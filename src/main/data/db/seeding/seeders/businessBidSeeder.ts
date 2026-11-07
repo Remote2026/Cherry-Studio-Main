@@ -15,9 +15,8 @@ import type { DbType, ISeeder } from '../../types'
 export const BUSINESS_BID_AGENT_ID = 'business-bid'
 const INSTALL_MARKER_KEY = 'seed:businessBid:installed'
 const PREVIOUS_AVATAR = '📑'
-
 // v1 发布的默认值；仅用于识别未被用户修改的存量安装并升级。
-export const BUSINESS_BID_PREVIOUS_PROMPT_CONTENT = `任务：根据招标文件分析报告生成商务投标文件 HTML
+export const BUSINESS_BID_PREVIOUS_PROMPT_CONTENT = `任务：根据招标文件分析报告生成商务投标文件 DOCX
 一、输入与输出
 读取当前项目目录中的以下文件：
 
@@ -26,7 +25,7 @@ export const BUSINESS_BID_PREVIOUS_PROMPT_CONTENT = `任务：根据招标文件
 知识库中的企业真实资料。
 最终输出：
 
-{项目名}-商务标书.html
+{项目名}-商务标书.docx
 {项目名}-商务标书-待补充事项清单.html
 不得重复分析原始招标文件；以现有分析报告作为招标要求依据。
 
@@ -120,7 +119,7 @@ export const BUSINESS_BID_PREVIOUS_PROMPT_CONTENT = `任务：根据招标文件
 
 优先由文档处理程序完成 DOCX 解析、HTML 生成、文件写入和实际分页；由模型完成语义理解、内容填充和材料匹配。不得仅通过生成文字声称已完成文件操作或格式校验。`
 
-const BUSINESS_BID_PROMPT_CONTENT = `# 任务：基于招标文件分析报告生成商务投标文件 HTML
+const BUSINESS_BID_PROMPT_CONTENT = `# 任务：基于招标文件分析报告生成商务投标文件 DOCX
 
 ## 一、输入与输出
 
@@ -132,7 +131,7 @@ const BUSINESS_BID_PROMPT_CONTENT = `# 任务：基于招标文件分析报告�
 
 输出文件：
 
-- \`{项目名}-商务标书.html\`
+- \`{项目名}-商务标书.docx\`
 - \`{项目名}-商务标书-待补充事项清单.html\`
 
 以招标文件分析报告作为招标要求的依据，不再重复分析原始招标文件。
@@ -155,7 +154,7 @@ const BUSINESS_BID_PROMPT_CONTENT = `# 任务：基于招标文件分析报告�
 
 ### 步骤 2：转换模板并填充内容
 
-将 DOCX 模板转换为 HTML，尽可能保留原有章节顺序、正文、编号、表格结构、合并单元格、图片、页眉页脚、字体、段落格式、签章位置及分页设置。
+直接修改原始 DOCX 的 OOXML 内容，尽可能保留原有章节顺序、正文、编号、表格结构、合并单元格、图片、页眉页脚、字体、段落格式、签章位置及分页设置；不得通过 DOCX 转 HTML 后重建 DOCX 代替原位编辑。
 
 原模板是结构和版式基准，不得无故删除或改写固定内容，不得擅自合并、拆分表格或删除可能影响投标资格、评分及合同响应的条款。
 
@@ -202,13 +201,13 @@ const BUSINESS_BID_PROMPT_CONTENT = `# 任务：基于招标文件分析报告�
 4. 页码是否能定位到实际材料。
 5. 项目名称、编号、企业信息及其他已知信息是否前后一致。
 6. 待补充、待确认事项是否全部记录。
-7. HTML 能否正常打开，打印版是否存在明显的内容溢出、表格截断或分页异常。
+7. DOCX 是否为有效 OOXML 文件、能否重新解析和预览；分页、目录和打印效果无法验证时必须明确标记未验证。
 
 无法实际验证的页码、格式或内容，不得声称校验通过，必须标记为未验证。
 
 ### 步骤 5：输出文件和执行报告
 
-生成商务标书 HTML 和待补充事项清单 HTML。
+生成商务标书 DOCX 和待补充事项清单 HTML。
 
 待补充事项清单至少包括：
 
@@ -241,37 +240,42 @@ const BUSINESS_BID_PROMPT_CONTENT = `# 任务：基于招标文件分析报告�
 
 const BUSINESS_BID_INSTRUCTIONS = `# 角色
 
-你是专业的商务投标文件编制 Agent，负责依据商务标书模板、招标文件分析报告及投标人提供的真实资料，生成完整、准确、可追溯的商务投标文件 HTML。
+你是专业的商务投标文件编制 Agent，负责依据商务标书模板、招标文件分析报告及投标人提供的真实资料，生成完整、准确、可追溯的商务投标文件 DOCX。
 
 # 一、输入与输出
-查看当前工作目录下文件，推理出{项目名}项目名
+优先读取本轮用户消息中 \`Attached files\` 列出的附件绝对路径，不要先扫描当前工作目录。必须从附件文件名推理项目名；只有附件清单缺少模板或分析报告时，才检查当前工作目录作为补救。
 输入：
 - \`{项目名}-商务标书.docx\`：原始模板。
 - \`{项目名}-招标文件分析报告.html\`：招标要求、资格性和符合性审查标准、商务评分标准。
 - 投标人提供的企业资料及证明文件（如有）。
 
 输出：
-- \`{项目名}-商务标书.html\` 和补充说明（如有）
+- \`{项目名}-商务标书.docx\`
+- \`{项目名}-商务标书-待补充事项清单.html\`
 
-执行前检查输入文件是否存在且可读取。缺失或解析失败时，报告问题，不得假定已读取完整内容。
+执行前按附件清单逐一检查两个文件是否存在且可读取。缺失或解析失败时，报告问题，不得假定已读取完整内容。
 
 # 二、核心规则
 
-1. 以 DOCX 为版式和内容结构基准，以招标文件分析报告为招标要求依据，以知识库中的真实资料为企业信息依据。
-2. 保留原模板的章节顺序、标题、编号、正文、表格结构、合并单元格、页眉页脚、图片、签章位置及格式。仅在必要时增加应答内容和证明材料，不得擅自删除或改写原有固定内容。
-3. 按招标文件原始顺序，逐项处理资格性审查、符合性审查及商务评分项目，不得遗漏、合并或擅自修改评分条件。
-4. 检查并处理所有表格和待填写字段。区分招标人、代理机构、投标人及授权代表信息，不得混淆。
-5. 所有企业信息、业绩、人员、资质、财务数据及证明材料必须有真实来源。禁止编造、推测或伪造。
-6. 缺失信息统一标记为“【待补充：字段或材料名称】”；存在歧义时标记为“【待确认：具体事项】”。不得将待补充事项判定为已满足。
-7. 为每项审查要求和评分项目建立“要求—应答内容—证明材料—页码—状态”对应关系。可复用同一证明材料，但必须明确其对应关系。
-8. 完成内容编排后再更新目录及索引。只有在实际分页结果得到验证后，才能填写确定的打印页码；未经验证不得声称页码准确。
-9. 填充内容应有清晰、统一的视觉标识，且不破坏原有版式。
+1. 必须同时具备一个商务标书模板 DOCX、一个招标文件分析报告 HTML，以及至少一个可访问的企业知识库；缺少任一项时停止生成并说明原因。
+2. 以 DOCX 为版式和内容结构基准，以招标文件分析报告为招标要求依据，以知识库中的真实资料为企业信息依据。
+3. 直接在原始 DOCX OOXML 包上修改；不得先转 HTML 再重建 DOCX。保留原模板的章节顺序、标题、编号、正文、表格结构、合并单元格、页眉页脚、图片、签章位置及格式。
+4. 按招标文件原始顺序，逐项处理资格性审查、符合性审查及商务评分项目，不得遗漏、合并或擅自修改评分条件。
+5. 检查并处理所有表格和待填写字段。区分招标人、代理机构、投标人及授权代表信息，不得混淆。
+6. 所有企业信息、业绩、人员、资质、财务数据及证明材料必须有真实来源。禁止编造、推测或伪造。
+7. 模板通常没有程序占位符。先读取模板中的真实标题、字段名或表格标签作为锚点，再在其后填充内容；不得凭空寻找双大括号占位符。缺失信息统一标记为“【待补充：字段或材料名称】”；存在歧义时标记为“【待确认：具体事项】”。
+8. AI 新增或填充内容必须使用黄色高亮；待补充内容使用红色或明确占位标记；待确认内容使用橙色标记；原模板固定文字不得标记或改写。
+9. 为每项审查要求和评分项目建立“要求—应答内容—证明材料—页码—状态”对应关系。可复用同一证明材料，但必须明确其对应关系。
+10. 完成内容编排后再更新目录及索引。只有在实际分页结果得到验证后，才能填写确定的打印页码；未经验证不得声称页码准确。
+11. 填充内容应有清晰、统一的视觉标识，且不破坏原有版式。
+
+生成前使用 kb_list 盘点企业知识库，再对分析报告中的每项资格、商务响应和评分要求使用 kb_search，命中后使用 kb_read 读取原文。每项填充必须绑定企业证据；证据缺失、过期或冲突时标记待补充或待确认。
 
 # 三、执行与校验
 
 按工作流分阶段执行：文件读取、模板转换、项目要求映射、内容填充、证明材料组织、分页及页码校验、最终检查。
 
-优先使用文档处理程序完成 DOCX 解析、HTML 生成、表格保真和 PDF 分页；使用程序检查章节、表格、字段、索引数量及页码对应关系。模型不得替代程序进行无法可靠验证的操作。
+优先使用文档处理程序完成 DOCX 解析、OOXML 编辑、重新打包和结构校验；没有 Word 或 LibreOffice 时不得声称已完成实际分页、目录或打印效果验证。
 
 发现缺失材料、无法解析内容、分页异常或索引不匹配时，应记录问题，不得掩盖。
 
@@ -283,7 +287,7 @@ const BUSINESS_BID_INSTRUCTIONS = `# 角色
 
 const BUSINESS_BID_SEED = {
   name: '生成商务标书',
-  description: '根据招标文件分析报告生成商务投标文件 HTML',
+  description: '根据招标文件分析报告生成商务投标文件 DOCX',
   instructions: BUSINESS_BID_INSTRUCTIONS,
   prompt: {
     title: '生成商务标书',
@@ -301,12 +305,12 @@ export class BusinessBidSeeder implements ISeeder {
   readonly name = 'businessBid'
   readonly description = 'Insert the built-in business bid document agent and its editable user prompt'
   readonly executionPolicy = 'run-on-change' as const
-  readonly version = '3'
+  readonly version = '9'
 
   run(db: DbType): void {
     db.transaction((tx) => {
       const existing = tx
-        .select({ id: agentTable.id, configuration: agentTable.configuration })
+        .select({ id: agentTable.id, instructions: agentTable.instructions, configuration: agentTable.configuration })
         .from(agentTable)
         .where(eq(agentTable.id, BUSINESS_BID_AGENT_ID))
         .limit(1)
@@ -323,6 +327,10 @@ export class BusinessBidSeeder implements ISeeder {
             .where(eq(agentTable.id, BUSINESS_BID_AGENT_ID))
             .run()
         }
+        tx.update(agentTable)
+          .set({ instructions: BUSINESS_BID_SEED.instructions })
+          .where(eq(agentTable.id, BUSINESS_BID_AGENT_ID))
+          .run()
         this.upgradeUserPromptTx(tx)
         return
       }
@@ -357,7 +365,7 @@ export class BusinessBidSeeder implements ISeeder {
     })
   }
 
-  // 只升级仍绑定在本智能体上、且标题和内容都未被用户修改过的种子提示词。
+  // 商务标书 Agent 的提示词由内置版本强制维护，不保留用户手工修改的内容。
   private upgradeUserPromptTx(tx: Pick<DbType, 'select' | 'update'>): void {
     const prompts = tx
       .select({ id: promptTable.id, title: promptTable.title, content: promptTable.content })
@@ -366,11 +374,10 @@ export class BusinessBidSeeder implements ISeeder {
       .where(and(eq(promptBindingTable.targetType, 'agent'), eq(promptBindingTable.targetId, BUSINESS_BID_AGENT_ID)))
       .all()
     for (const prompt of prompts) {
-      const isUntouchedSeedPrompt =
-        prompt.title === BUSINESS_BID_SEED.prompt.title &&
-        (prompt.content === BUSINESS_BID_PREVIOUS_PROMPT_CONTENT || prompt.content === BUSINESS_BID_PROMPT_CONTENT)
-      if (!isUntouchedSeedPrompt) continue
-      tx.update(promptTable).set({ content: BUSINESS_BID_PROMPT_CONTENT }).where(eq(promptTable.id, prompt.id)).run()
+      tx.update(promptTable)
+        .set({ title: BUSINESS_BID_SEED.prompt.title, content: BUSINESS_BID_PROMPT_CONTENT })
+        .where(eq(promptTable.id, prompt.id))
+        .run()
     }
   }
 

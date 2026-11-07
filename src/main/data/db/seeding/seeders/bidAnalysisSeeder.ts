@@ -1,5 +1,3 @@
-import { createHash } from 'node:crypto'
-
 import { and, eq } from 'drizzle-orm'
 import { v4 as uuidv4 } from 'uuid'
 
@@ -21,17 +19,15 @@ const INSTALL_MARKER_KEY = 'seed:bidAnalysis:installed'
 const PREVIOUS_NAME = '标书分析'
 const PREVIOUS_INSTRUCTIONS = '你是标书顾问'
 const PREVIOUS_DESCRIPTION = '分析招标文件，生成 HTML 格式的分析问卷'
-const PREVIOUS_PROMPT_TITLE = '生成分析问卷'
-const PREVIOUS_PROMPT_CONTENT = '分析项目招标文件，生成html格式的分析问卷'
 const PREVIOUS_AVATAR = '📋'
 /** v6-v9 默认 instructions 的 sha256；只用于识别“未被用户改过”的存量安装。 */
-const PREVIOUS_INSTRUCTIONS_V6_SHA256 = '3e7ccf1e8357e91dd16e65b6dd023c4fd9400148c3e05d6432347e928a6c2a5f'
 const PREVIOUS_INSTRUCTIONS_V7_SHA256 = 'ee07ffc29d10b32be67be58ae8e43c5cb4f67a59ba6910c5d5ceaf396dd4afdc'
 const PREVIOUS_INSTRUCTIONS_V8_SHA256 = '475b4f06dfede6803054d09e7e0944dba5d2dffacb38c128ed27653214733ce6'
 const PREVIOUS_INSTRUCTIONS_V9_SHA256 = 'ba19287fe5a9d95af9c032d54295b445626357c1e2b0b311f08125c81ea4ff4a'
 const PREVIOUS_INSTRUCTIONS_V10_SHA256 = '62edb602720619c37f7992da8fd68c756bb76daf77af4a751abbcee271be9aeb'
 const PREVIOUS_INSTRUCTIONS_V11_SHA256 = '33a8ef1bff6c9e02b301d987d4fe9e0d1e5a8a244105ab2b1b975eb747acb739'
 const PREVIOUS_INSTRUCTIONS_V12_SHA256 = '5fc6177dacddaed1dd5870f2bea85aa73cf8c5dd42edcd9ecf2290fef33c987e'
+const PREVIOUS_INSTRUCTIONS_V13_SHA256 = '916ab5c46e0771210c9d8e4a726dbc0b5333150625964da8f09d59d475b55aca'
 
 const sha256 = (value: string): string => createHash('sha256').update(value, 'utf8').digest('hex')
 
@@ -53,7 +49,7 @@ const BID_ANALYSIS_PROMPT_CONTENT = `请分析本次上传的招标文件，严�
 
 请核对文件完整性、补遗及澄清文件，确保重要结论能够追溯至原文。
 
-如缺少企业资料，继续完成招标文件分析，并将企业资格、响应能力及实际得分标记为“待核实”，不得编造。
+必须结合企业知识库判断本方是否满足：先盘点可用知识库，再按资格、技术/商务响应和评分项逐项检索企业证据；只有企业知识库不可用、未找到证据或证据冲突时，才标记“待核实”，不得默认全部待核实或编造。
 
 如果没有可读取的招标文件附件，也没有指定可访问的工作目录，请先提示我提供文件，不得直接生成虚构报告。
 
@@ -68,7 +64,7 @@ const BID_ANALYSIS_INSTRUCTIONS = `# 角色
 1. 只依据实际提供且成功读取的文件作结论；不得编造项目名称、金额、日期、资质、业绩、人员、评分或条款。
 2. 重要结论必须引用文件名、章节或条款号、可确认的页码和必要的原文摘录；原文与分析结论分开。
 3. 区分“文件明确规定”“依据文件分析得出”“风险提示”“待核实”。找不到条款时写“未检索到明确依据”，不得推断为文件不存在。
-4. 企业资料不足时继续分析招标文件；企业资格、响应能力和得分统一标记为“待核实”。本分析不构成法律意见或中标承诺。
+4. 企业知识库是判断本方能力的必查证据源。本分析不构成法律意见或中标承诺。
 
 # 附件角色
 
@@ -77,6 +73,17 @@ const BID_ANALYSIS_INSTRUCTIONS = `# 角色
 # 文档读取
 
 没有可读取的招标文件或用户指定目录时，先要求用户提供文件。收到文档句柄后，严格按 RagFlow 工具描述连续读取，完成 coverage 检查后再分析；不得跳读、直接读取原文件、在解析完成前猜测内容，或把不完整 coverage 说成全文分析。页码、章节和表格内容以工具返回结果为准。
+
+# 企业知识库核查（不可跳过）
+
+在形成“本方是否满足”、响应能力、资格审查、得分预估或材料缺口结论前，必须执行以下流程：
+
+1. 使用 kb_list 盘点当前可访问的全部企业知识库及文档范围；不要只检索第一个知识库。
+2. 根据招标要求建立核查清单，至少覆盖主体/资质、财务纳税社保、业绩、人员、技术参数、认证、交付售后和评分证明材料。
+3. 对每项要求使用 kb_search 在相关知识库中检索；命中后用 kb_read 读取原文和上下文。对关键证据使用精确关键词复核，不得只依据标题或摘要。
+4. 将招标文件要求与企业证据逐项配对，记录企业文档名、证据摘录、有效期/适用范围及 [cite:id] 引用。
+5. 证据明确满足才写“满足”；明确不满足才写“不满足”；证据缺失、过期、范围不明或冲突写“待核实”或“需澄清”。“未检索到”不等于“不满足”。
+6. 若知识库工具不可用、访问范围为空或检索失败，必须在报告中明确记录受影响的核查项和失败原因，不得假装已核查，也不得把整份报告的本方结论静默改成“待核实”。
 
 # 分析范围
 
@@ -90,7 +97,7 @@ const BID_ANALYSIS_INSTRUCTIONS = `# 角色
 - 投标文件组成、模板、格式、签字盖章、份数、装订、密封、电子提交、样品和演示要求。
 - 补遗、澄清和文件冲突，以及可直接提交给采购人或代理机构的澄清问题。
 
-资格状态只能使用：满足、需澄清、不满足、待核实。企业资料缺失或证据不足时不得判为满足或不满足；不得把常见经验当作本项目明确的废标条件。
+资格状态只能使用：满足、需澄清、不满足、待核实。每一项企业资格、响应能力和评分结论必须同时给出招标文件依据与企业知识库证据；企业资料缺失或证据不足时不得判为满足或不满足；不得把常见经验当作本项目明确的废标条件。
 
 # 输出
 
@@ -128,7 +135,7 @@ export class BidAnalysisSeeder implements ISeeder {
   readonly name = 'bidAnalysis'
   readonly description = 'Insert the built-in bid analysis agent and its editable user prompt'
   readonly executionPolicy = 'run-on-change' as const
-  readonly version = '13'
+  readonly version = '17'
 
   run(db: DbType): void {
     db.transaction((tx) => {
@@ -148,7 +155,7 @@ export class BidAnalysisSeeder implements ISeeder {
         // Mark the install even for libraries seeded before the marker existed, so a
         // later seeder version cannot resurrect an agent the user has deleted.
         this.ensureInstallMarkerTx(tx)
-        // 只升级仍是旧版默认值的字段；用户改过的名称、描述、提示词一律保留。
+        // 这个内置 Agent 的系统指令和绑定提示词由版本发布强制维护。
         const upgrades: Partial<typeof agentTable.$inferInsert> = {}
         if (existing[0].name === PREVIOUS_NAME) {
           upgrades.name = BID_ANALYSIS_SEED.name
@@ -156,18 +163,7 @@ export class BidAnalysisSeeder implements ISeeder {
         if (existing[0].description === PREVIOUS_DESCRIPTION) {
           upgrades.description = BID_ANALYSIS_SEED.description
         }
-        if (
-          existing[0].instructions === PREVIOUS_INSTRUCTIONS ||
-          sha256(existing[0].instructions) === PREVIOUS_INSTRUCTIONS_V6_SHA256 ||
-          sha256(existing[0].instructions) === PREVIOUS_INSTRUCTIONS_V7_SHA256 ||
-          sha256(existing[0].instructions) === PREVIOUS_INSTRUCTIONS_V8_SHA256 ||
-          sha256(existing[0].instructions) === PREVIOUS_INSTRUCTIONS_V9_SHA256 ||
-          sha256(existing[0].instructions) === PREVIOUS_INSTRUCTIONS_V10_SHA256 ||
-          sha256(existing[0].instructions) === PREVIOUS_INSTRUCTIONS_V11_SHA256 ||
-          sha256(existing[0].instructions) === PREVIOUS_INSTRUCTIONS_V12_SHA256
-        ) {
-          upgrades.instructions = BID_ANALYSIS_INSTRUCTIONS
-        }
+        upgrades.instructions = BID_ANALYSIS_INSTRUCTIONS
         if (existing[0].configuration?.avatar === PREVIOUS_AVATAR) {
           upgrades.configuration = { ...existing[0].configuration, avatar: BID_ANALYSIS_SEED.configuration.avatar }
         }
@@ -209,7 +205,7 @@ export class BidAnalysisSeeder implements ISeeder {
     })
   }
 
-  // 只升级仍绑定在本智能体上、且标题和内容都未被用户修改过的种子提示词。
+  // 绑定提示词由内置版本强制维护，不保留用户手工修改的内容。
   private upgradeUserPromptTx(tx: Pick<DbType, 'select' | 'update'>): void {
     const prompts = tx
       .select({ id: promptTable.id, title: promptTable.title, content: promptTable.content })
@@ -218,10 +214,6 @@ export class BidAnalysisSeeder implements ISeeder {
       .where(and(eq(promptBindingTable.targetType, 'agent'), eq(promptBindingTable.targetId, BID_ANALYSIS_AGENT_ID)))
       .all()
     for (const prompt of prompts) {
-      const isUntouchedSeedPrompt =
-        prompt.title === PREVIOUS_PROMPT_TITLE &&
-        (prompt.content === PREVIOUS_PROMPT_CONTENT || prompt.content === BID_ANALYSIS_PROMPT_CONTENT)
-      if (!isUntouchedSeedPrompt) continue
       tx.update(promptTable)
         .set({ title: BID_ANALYSIS_SEED.prompt.title, content: BID_ANALYSIS_PROMPT_CONTENT })
         .where(eq(promptTable.id, prompt.id))

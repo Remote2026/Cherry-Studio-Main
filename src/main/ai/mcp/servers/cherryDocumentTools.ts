@@ -61,7 +61,10 @@ async function isAuthorizedOutsideWorkspace(context: CherryDocumentContext, requ
  * Anything else keeps the workspace guard's rejection — this tool is auto-approved, so an
  * unauthorized path must fail here rather than reach the converter.
  */
-async function resolveDocumentSource(context: CherryDocumentContext, sourcePath: string): Promise<FileAttachment> {
+export async function resolveDocumentSource(
+  context: CherryDocumentContext,
+  sourcePath: string
+): Promise<FileAttachment> {
   try {
     return await resolveWorkspaceFile(context.workspacePath, sourcePath)
   } catch (workspaceError) {
