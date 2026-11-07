@@ -17,19 +17,8 @@ const INSTALL_MARKER_KEY = 'seed:bidAnalysis:installed'
 
 // v1 发布的默认值；仅用于识别未被用户修改的存量安装并升级。
 const PREVIOUS_NAME = '标书分析'
-const PREVIOUS_INSTRUCTIONS = '你是标书顾问'
 const PREVIOUS_DESCRIPTION = '分析招标文件，生成 HTML 格式的分析问卷'
 const PREVIOUS_AVATAR = '📋'
-/** v6-v9 默认 instructions 的 sha256；只用于识别“未被用户改过”的存量安装。 */
-const PREVIOUS_INSTRUCTIONS_V7_SHA256 = 'ee07ffc29d10b32be67be58ae8e43c5cb4f67a59ba6910c5d5ceaf396dd4afdc'
-const PREVIOUS_INSTRUCTIONS_V8_SHA256 = '475b4f06dfede6803054d09e7e0944dba5d2dffacb38c128ed27653214733ce6'
-const PREVIOUS_INSTRUCTIONS_V9_SHA256 = 'ba19287fe5a9d95af9c032d54295b445626357c1e2b0b311f08125c81ea4ff4a'
-const PREVIOUS_INSTRUCTIONS_V10_SHA256 = '62edb602720619c37f7992da8fd68c756bb76daf77af4a751abbcee271be9aeb'
-const PREVIOUS_INSTRUCTIONS_V11_SHA256 = '33a8ef1bff6c9e02b301d987d4fe9e0d1e5a8a244105ab2b1b975eb747acb739'
-const PREVIOUS_INSTRUCTIONS_V12_SHA256 = '5fc6177dacddaed1dd5870f2bea85aa73cf8c5dd42edcd9ecf2290fef33c987e'
-const PREVIOUS_INSTRUCTIONS_V13_SHA256 = '916ab5c46e0771210c9d8e4a726dbc0b5333150625964da8f09d59d475b55aca'
-
-const sha256 = (value: string): string => createHash('sha256').update(value, 'utf8').digest('hex')
 
 const BID_ANALYSIS_PROMPT_CONTENT = `请分析本次上传的招标文件，严格按照系统提示词规定的工作流程、风险识别规则和报告结构完成分析。
 
