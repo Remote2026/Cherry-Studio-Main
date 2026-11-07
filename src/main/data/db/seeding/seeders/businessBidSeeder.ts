@@ -117,7 +117,7 @@ export const BUSINESS_BID_PREVIOUS_PROMPT_CONTENT = `任务：根据招标文件
 三、执行原则
 按上述步骤串行执行，前一步的结果作为后一步的输入。每一步完成后检查结果，再继续下一步；发现错误时优先修复对应问题。
 
-优先由文档处理程序完成 DOCX 解析、HTML 生成、文件写入和实际分页；由模型完成语义理解、内容填充和材料匹配。不得仅通过生成文字声称已完成文件操作或格式校验。`
+优先使用 Cherry Studio 内置文档工具和 business_bid_create_docx 完成 DOCX 解析和文件写入；由模型完成语义理解、内容填充和材料匹配。禁止调用 shell 或外部程序，也不得仅通过生成文字声称已完成文件操作或格式校验。`
 
 const BUSINESS_BID_PROMPT_CONTENT = `# 任务：基于招标文件分析报告生成商务投标文件 DOCX
 
@@ -151,6 +151,13 @@ const BUSINESS_BID_PROMPT_CONTENT = `# 任务：基于招标文件分析报告�
 读取企业知识库中的相关资料，建立企业信息与证明材料清单。
 
 前置条件不满足时，停止正式生成并报告原因。
+
+### 工具与运行环境约束
+
+- 只使用 Cherry Studio 内置文档工具和 \`business_bid_create_docx\` 完成 DOCX 读取、填充、写入和重新打包。
+- 禁止调用 shell、PowerShell、命令提示符、Python、Pandoc、LibreOffice、Microsoft Word 或其他外部程序。
+- 不要求用户安装 Office、Python、Pandoc、LibreOffice 或其他运行时依赖；内置工具失败时直接报告错误。
+- 内置工具不执行真实打印分页、目录更新或打印效果验证。无法验证的页码和版式必须标记为“未验证”。
 
 ### 步骤 2：转换模板并填充内容
 
@@ -233,7 +240,7 @@ const BUSINESS_BID_PROMPT_CONTENT = `# 任务：基于招标文件分析报告�
 ## 三、执行原则
 
 1. 按步骤顺序执行，前一步完成并检查后再进入下一步。
-2. 优先使用文档处理程序完成 DOCX 解析、HTML 生成、文件写入和实际分页；使用模型完成语义理解、内容填充和材料匹配。
+2. 优先使用 Cherry Studio 内置文档工具完成 DOCX 解析和文件写入；使用模型完成语义理解、内容填充和材料匹配。禁止调用 shell 或外部文档程序。
 3. 不得以生成文字代替实际文件操作，不得声称完成了未经执行的校验。
 4. 发现错误时优先修复对应问题；无法修复时记录原因，并在待补充事项清单中列明。
 5. 始终以招标文件分析报告和企业真实资料为依据，确保内容可追溯、缺失项可识别、校验结果可核实。`
@@ -275,7 +282,7 @@ const BUSINESS_BID_INSTRUCTIONS = `# 角色
 
 按工作流分阶段执行：文件读取、模板转换、项目要求映射、内容填充、证明材料组织、分页及页码校验、最终检查。
 
-优先使用文档处理程序完成 DOCX 解析、OOXML 编辑、重新打包和结构校验；没有 Word 或 LibreOffice 时不得声称已完成实际分页、目录或打印效果验证。
+优先使用 Cherry Studio 内置文档工具和 business_bid_create_docx 完成 DOCX 解析、OOXML 编辑和重新打包；禁止调用 shell、Python、Pandoc、LibreOffice、Microsoft Word 或其他外部程序。内置工具不执行真实打印分页、目录更新或打印效果验证，无法验证的内容必须标记为未验证。
 
 发现缺失材料、无法解析内容、分页异常或索引不匹配时，应记录问题，不得掩盖。
 
@@ -305,7 +312,7 @@ export class BusinessBidSeeder implements ISeeder {
   readonly name = 'businessBid'
   readonly description = 'Insert the built-in business bid document agent and its editable user prompt'
   readonly executionPolicy = 'run-on-change' as const
-  readonly version = '9'
+  readonly version = '10'
 
   run(db: DbType): void {
     db.transaction((tx) => {

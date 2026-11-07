@@ -35,7 +35,7 @@ describe('BusinessBidSeeder', () => {
   it('uses a stable seeder identity', () => {
     const seeder = new BusinessBidSeeder()
     expect(seeder.name).toBe('businessBid')
-    expect(seeder.version).toBe('9')
+    expect(seeder.version).toBe('10')
     expect(seeder.executionPolicy).toBe('run-on-change')
     expect(seeder.description).toBeTruthy()
   })
@@ -56,6 +56,8 @@ describe('BusinessBidSeeder', () => {
     expect(agent.instructions).toContain('一个商务标书模板 DOCX')
     expect(agent.instructions).toContain('一个招标文件分析报告 HTML')
     expect(agent.instructions).toContain('企业知识库')
+    expect(agent.instructions).toContain('禁止调用 shell')
+    expect(agent.instructions).toContain('business_bid_create_docx')
     expect(agent.instructions).toContain('黄色高亮')
     expect(agent.configuration).toMatchObject({
       avatar: '🍆',
@@ -96,6 +98,7 @@ describe('BusinessBidSeeder', () => {
     })
     expect(prompt.content.startsWith('# 任务：基于招标文件分析报告生成商务投标文件 DOCX')).toBe(true)
     expect(prompt.content).toContain('{项目名}-商务标书-待补充事项清单.html')
+    expect(prompt.content).toContain('禁止调用 shell')
     expect(dbh.db.select().from(promptBindingTable).all()).toHaveLength(1)
   })
 
